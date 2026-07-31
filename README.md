@@ -92,6 +92,10 @@ docs/                  # 设计说明与截图
 - [`docs/superpowers/specs/2026-07-24-favorites-sidepanel-design.md`](docs/superpowers/specs/2026-07-24-favorites-sidepanel-design.md)  
 - [`docs/superpowers/specs/2026-07-31-git-sync-design.md`](docs/superpowers/specs/2026-07-31-git-sync-design.md)  
 
+## AI 开发说明
+
+本项目主要由 AI（Cursor Agent）辅助完成：需求梳理、设计文档、实现与测试均在 AI 协作下推进，人工负责方向确认与验收。
+
 ## 许可
 
-私有项目（`private: true`）。若需开源协议，请自行补充 `LICENSE`。
+[MIT](LICENSE) © 2026 Goleven
