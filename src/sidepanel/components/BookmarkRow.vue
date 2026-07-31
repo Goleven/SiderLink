@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { BookmarkItem } from '@/shared/types'
 import AppIcon from './AppIcon.vue'
 
-defineProps<{ item: BookmarkItem }>()
+const props = defineProps<{ item: BookmarkItem }>()
 const emit = defineEmits<{
   open: []
   edit: []
@@ -14,6 +14,14 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+const faviconBroken = ref(false)
+
+watch(
+  () => props.item.faviconUrl,
+  () => {
+    faviconBroken.value = false
+  },
+)
 const MENU_GAP = 4
 const VIEWPORT_PAD = 8
 /** Approximate closed-menu height for flip decision before measure. */
@@ -171,8 +179,13 @@ onUnmounted(() => {
   >
     <button type="button" class="main">
       <span class="icon" aria-hidden="true">
-        <img v-if="item.faviconUrl" :src="item.faviconUrl" alt="" />
-        <span v-else class="placeholder" />
+        <img
+          v-if="item.faviconUrl && !faviconBroken"
+          :src="item.faviconUrl"
+          alt=""
+          @error="faviconBroken = true"
+        />
+        <AppIcon v-else name="earth" :size="36" :stroke-width="1.5" />
       </span>
       <span class="text">
         <span class="name">{{ item.title }}</span>
@@ -304,23 +317,15 @@ onUnmounted(() => {
   border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
-  /* background: color-mix(in srgb, var(--text-tertiary) 14%, transparent); */
   display: grid;
   place-items: center;
+  color: var(--text-tertiary);
 }
 
 .icon img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.placeholder {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--text-tertiary);
-  opacity: 0.45;
 }
 
 .text {

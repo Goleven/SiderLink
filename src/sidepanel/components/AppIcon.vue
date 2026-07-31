@@ -26,6 +26,7 @@ import {
   CreditCard,
   Database,
   Dumbbell,
+  Earth,
   FileText,
   Film,
   Flag,
@@ -115,6 +116,7 @@ const UI_ICONS: Record<string, LucideIcon> = {
   check: Check,
   search: Search,
   'circle-help': CircleHelp,
+  earth: Earth,
 }
 
 const GROUP_ICONS: Record<GroupIconId, LucideIcon> = {
