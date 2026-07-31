@@ -21,6 +21,7 @@ type BookmarkDrag = {
   previewGroupId: string
   previewIndex: number
   shifted: HTMLElement[]
+  spacer: HTMLElement | null
 }
 
 type GroupDrag = {
@@ -34,6 +35,7 @@ type GroupDrag = {
   rowHeight: number
   previewIndex: number
   shifted: HTMLElement[]
+  spacer: HTMLElement | null
 }
 
 /**
@@ -59,6 +61,29 @@ export function useDragReorder(opts: {
     state.shifted = []
   }
 
+  function removeSpacer(state: { spacer: HTMLElement | null }) {
+    state.spacer?.remove()
+    state.spacer = null
+  }
+
+  /**
+   * Keep list height after the lifted row leaves flow. Appended (not at the
+   * original index) so peer translateY can open the insert slot without a
+   * second layout hole.
+   */
+  function insertDragSpacer(state: BookmarkDrag | GroupDrag, rowPx: number) {
+    removeSpacer(state)
+    const parent = state.el.parentElement
+    if (!parent) return
+    const spacer = document.createElement('div')
+    spacer.dataset.dragSpacer = '1'
+    spacer.style.height = `${rowPx}px`
+    spacer.style.flexShrink = '0'
+    spacer.style.pointerEvents = 'none'
+    parent.appendChild(spacer)
+    state.spacer = spacer
+  }
+
   function cleanupLiftedRow(el: HTMLElement) {
     el.classList.remove('dragging')
     el.style.transform = ''
@@ -75,11 +100,13 @@ export function useDragReorder(opts: {
 
   function cleanupBookmark(state: BookmarkDrag) {
     clearSiblingShifts(state)
+    removeSpacer(state)
     cleanupLiftedRow(state.el)
   }
 
   function cleanupGroup(state: GroupDrag) {
     clearSiblingShifts(state)
+    removeSpacer(state)
     cleanupLiftedRow(state.el)
   }
 
@@ -120,10 +147,17 @@ export function useDragReorder(opts: {
   }
 
   /** Insert index among peers: first peer whose midY is below pointer. */
+  function currentTranslateY(el: HTMLElement): number {
+    const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform)
+    return m ? Number(m[1]) : 0
+  }
+
   function insertIndexAtY(peers: HTMLElement[], clientY: number): number {
     for (let i = 0; i < peers.length; i++) {
-      const rect = peers[i]!.getBoundingClientRect()
-      const mid = rect.top + rect.height / 2
+      const peer = peers[i]!
+      const rect = peer.getBoundingClientRect()
+      // Undo active drag shift so midY is resting layout position.
+      const mid = rect.top - currentTranslateY(peer) + rect.height / 2
       if (clientY < mid) return i
     }
     return peers.length
@@ -199,11 +233,11 @@ export function useDragReorder(opts: {
         state.shifted.push(peer)
       }
     }
-    // Lifted row leaves flow; keep trailing "create" row from collapsing into the last group.
+    // Spacer holds lifted-row height; still nudge create when inserting at end.
     const createRow = state.list.querySelector<HTMLElement>(
       '[data-settings-group-create]',
     )
-    if (createRow) {
+    if (createRow && state.previewIndex >= peers.length) {
       createRow.style.transition = 'transform 120ms ease-out'
       createRow.style.transform = `translateY(${h}px)`
       state.shifted.push(createRow)
@@ -227,6 +261,9 @@ export function useDragReorder(opts: {
     const rect = el.getBoundingClientRect()
     state.rowHeight = rect.height + gapPx
     state.grabOffset = e.clientY - rect.top
+
+    // Reserve row height only (flex gap stays between siblings).
+    insertDragSpacer(state, rect.height)
 
     el.classList.add('dragging')
     el.style.pointerEvents = 'none'
@@ -268,6 +305,7 @@ export function useDragReorder(opts: {
       previewGroupId: groupId,
       previewIndex: -1,
       shifted: [],
+      spacer: null,
     }
     el.style.touchAction = 'none'
 
@@ -340,6 +378,7 @@ export function useDragReorder(opts: {
       rowHeight: el.getBoundingClientRect().height,
       previewIndex: -1,
       shifted: [],
+      spacer: null,
     }
     el.style.touchAction = 'none'
 
