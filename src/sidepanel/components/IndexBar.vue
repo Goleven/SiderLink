@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildIndexBarAnchors } from '@/shared/indexBar'
 import type { Group } from '@/shared/types'
@@ -27,25 +27,25 @@ let itemEls: (HTMLElement | null)[] = []
 const hot = ref(false)
 const hoveredId = ref<string | null>(null)
 
-/** Match CSS item base size / gap / vertical padding (resting layout). */
-const ITEM_BASE = 18
-const ITEM_GAP = 8
-const PAD_Y = 5
-/** Fixed separator height (matches `.separator`); not a Dock magnet. */
-const SEP_HEIGHT = 1
-/** Extra vertical offset after groups: separator + the flex gap before first action. */
-const SEP_BLOCK = SEP_HEIGHT + ITEM_GAP
-
 const SETTINGS_ID = '__settings'
 const ADD_ID = '__add'
 
-/** Influence radius (px) and peak scale — Dock-like falloff. */
-const DOCK_RANGE = 72
-const DOCK_MAX = 3.44
+/** Match CSS --item-size / --index-pad-x. */
+const ITEM_BASE = 18
+const INDEX_PAD_X = 4
 
-/** Pinned bar top while hot — keeps magnets stable as height grows. */
-let pinnedTop: number | null = null
-let pendingPointerY: number | null = null
+/**
+ * CodePen (stevenlei/poNXLXK) model: peak = 1 + SCALE_EXTRA on the hovered
+ * item; prev/next blend by vertical offset within that item.
+ */
+const SCALE_EXTRA = 1.2
+
+/** Hot hit strip = peak icon width + pad (not the resting narrow column). */
+const HOT_HIT_WIDTH = ITEM_BASE * (1 + SCALE_EXTRA) + INDEX_PAD_X * 2
+/** Apple-design leave hysteresis — brief edge jitter must not end hot. */
+const LEAVE_HYSTERESIS = 10
+
+let pendingPointer: { x: number; y: number } | null = null
 let dockRaf = 0
 
 const anchors = computed(() => buildIndexBarAnchors(props.groups))
@@ -85,109 +85,184 @@ function setItemRef(el: unknown, index: number) {
   itemEls[index] = next
 }
 
-function scaleAtDistance(distance: number): number {
-  if (distance >= DOCK_RANGE) return 1
-  return (
-    1 +
-    (DOCK_MAX - 1) * 0.5 * (1 + Math.cos((Math.PI * distance) / DOCK_RANGE))
-  )
+function writeDockScale(el: HTMLElement, scale: number) {
+  el.style.setProperty('--dock-scale', String(scale))
+  el.style.zIndex = scale > 1.02 ? String(Math.round(scale * 10)) : '0'
 }
 
-/** Resting slot centers from pinned/current bar top (unscaled magnets). */
-function restingCenterY(index: number, bar: HTMLElement): number {
-  const top = pinnedTop ?? bar.getBoundingClientRect().top
-  const groupCount = anchors.value.length
-  const sepOffset = index >= groupCount ? SEP_BLOCK : 0
-  return (
-    top + PAD_Y + index * (ITEM_BASE + ITEM_GAP) + ITEM_BASE / 2 + sepOffset
-  )
-}
-
-/** Tooltip target from live layout — accounts for dock-scaled item heights. */
-function nearestVisualId(clientY: number): string | null {
-  const list = dockItems.value
-  if (!list.length) return null
-
-  let best = 0
-  let bestDist = Infinity
-  for (let i = 0; i < list.length; i++) {
-    const el = itemEls[i]
+function resetAllScales() {
+  for (const el of itemEls) {
     if (!el) continue
-    const rect = el.getBoundingClientRect()
-    const mid = rect.top + rect.height / 2
+    writeDockScale(el, 1)
+  }
+}
+
+function adjacentItem(
+  el: HTMLElement,
+  direction: 'previousElementSibling' | 'nextElementSibling',
+): HTMLElement | null {
+  let node: Element | null = el[direction]
+  while (node) {
+    if (node instanceof HTMLElement && node.classList.contains('item')) {
+      return node
+    }
+    node = node[direction]
+  }
+  return null
+}
+
+function itemAtPoint(clientX: number, clientY: number): HTMLElement | null {
+  const hit = document.elementFromPoint(clientX, clientY)
+  const item = hit?.closest?.('.item') as HTMLElement | null
+  const bar = barRef.value
+  if (item && bar?.contains(item)) return item
+
+  // Gaps / overflow: nearest item by vertical mid
+  let best: HTMLElement | null = null
+  let bestDist = Infinity
+  for (const el of itemEls) {
+    if (!el) continue
+    const r = el.getBoundingClientRect()
+    const mid = r.top + r.height / 2
     const d = Math.abs(clientY - mid)
     if (d < bestDist) {
       bestDist = d
-      best = i
+      best = el
     }
   }
-  if (bestDist > DOCK_RANGE) return null
-  return list[best]?.id ?? null
+  return best
 }
 
-function applyDockScales(clientY: number | null) {
-  const bar = barRef.value
-  if (!bar) return
+/**
+ * Vertical port of CodePen dock:
+ * offset 0 = top of item, 1 = bottom; current always max; neighbors blend.
+ */
+function applyDockScales(clientX: number, clientY: number) {
+  if (!barRef.value) return
 
-  for (let i = 0; i < itemEls.length; i++) {
-    const el = itemEls[i]
-    if (!el) continue
+  resetAllScales()
 
-    let scale = 1
-    if (!reduced.value && clientY != null) {
-      scale = scaleAtDistance(Math.abs(clientY - restingCenterY(i, bar)))
-    }
-    el.style.setProperty('--dock-scale', String(scale))
-    el.style.zIndex = scale > 1.02 ? String(Math.round(scale * 10)) : '0'
+  if (reduced.value) {
+    hoveredId.value = null
+    return
   }
 
-  // Tooltip follows visual item under the pointer (not resting magnets)
-  if (clientY != null && hot.value) {
-    const id = nearestVisualId(clientY)
-    if (hoveredId.value !== id) hoveredId.value = id
+  const current = itemAtPoint(clientX, clientY)
+  if (!current) {
+    hoveredId.value = null
+    return
   }
+
+  const rect = current.getBoundingClientRect()
+  const offset = Math.min(
+    1,
+    Math.max(0, (clientY - rect.top) / Math.max(rect.height, 1)),
+  )
+
+  writeDockScale(current, 1 + SCALE_EXTRA)
+
+  const prev = adjacentItem(current, 'previousElementSibling')
+  if (prev) writeDockScale(prev, 1 + SCALE_EXTRA * (1 - offset))
+
+  const next = adjacentItem(current, 'nextElementSibling')
+  if (next) writeDockScale(next, 1 + SCALE_EXTRA * offset)
+
+  const id = current.dataset.dockId ?? null
+  if (hoveredId.value !== id) hoveredId.value = id
 }
 
 function flushDockScales() {
   dockRaf = 0
-  applyDockScales(pendingPointerY)
+  if (!pendingPointer) return
+  applyDockScales(pendingPointer.x, pendingPointer.y)
 }
 
-function scheduleDockScales(clientY: number) {
-  pendingPointerY = clientY
+function scheduleDockScales(clientX: number, clientY: number) {
+  pendingPointer = { x: clientX, y: clientY }
   if (dockRaf) return
   dockRaf = requestAnimationFrame(flushDockScales)
 }
 
 function resetDockScales() {
-  pendingPointerY = null
+  pendingPointer = null
   if (dockRaf) {
     cancelAnimationFrame(dockRaf)
     dockRaf = 0
   }
+  resetAllScales()
+}
+
+function endHot() {
+  if (!hot.value) return
+  hot.value = false
+  hoveredId.value = null
+  document.removeEventListener('pointermove', onDocPointerMove)
+  document.documentElement.removeEventListener(
+    'mouseleave',
+    onDocumentMouseLeave,
+  )
+  requestAnimationFrame(() => {
+    resetDockScales()
+  })
+}
+
+function onDocPointerMove(e: PointerEvent) {
+  if (!hot.value) return
+  if (!isPointerOverDock(e.clientX, e.clientY)) {
+    endHot()
+    return
+  }
+  scheduleDockScales(e.clientX, e.clientY)
+}
+
+function onDocumentMouseLeave() {
+  endHot()
+}
+
+/**
+ * Stay hot over the peak-width vertical strip (covers right-edge + flex gaps).
+ * Cap at HOT_HIT_WIDTH so we don't trap the pointer over the bookmark list.
+ */
+function isPointerOverDock(clientX: number, clientY: number): boolean {
+  const bar = barRef.value
+  if (!bar) return false
+  const br = bar.getBoundingClientRect()
+  const pad = LEAVE_HYSTERESIS
+  if (
+    clientX >= br.left - pad &&
+    clientX <= br.left + HOT_HIT_WIDTH + pad &&
+    clientY >= br.top - pad &&
+    clientY <= br.bottom + pad
+  ) {
+    return true
+  }
+  // Glyph overflow / subpixel fallback
   for (const el of itemEls) {
     if (!el) continue
-    el.style.setProperty('--dock-scale', '1')
-    el.style.zIndex = '0'
+    const glyph = el.querySelector('.glyph') as HTMLElement | null
+    if (!glyph) continue
+    const g = glyph.getBoundingClientRect()
+    if (
+      clientX >= g.left - pad &&
+      clientX <= g.right + pad &&
+      clientY >= g.top - pad &&
+      clientY <= g.bottom + pad
+    ) {
+      return true
+    }
   }
+  return false
 }
 
 function onBarPointerEnter(e: PointerEvent) {
-  const bar = barRef.value
-  if (bar) {
-    // Pin top while hot so height growth expands downward only —
-    // resting magnets stay stable (no translateY(-50%) drift).
-    pinnedTop = bar.getBoundingClientRect().top
-    bar.style.top = `${pinnedTop}px`
-    bar.style.transform = 'none'
-  }
   hot.value = true
-  scheduleDockScales(e.clientY)
+  document.addEventListener('pointermove', onDocPointerMove)
+  document.documentElement.addEventListener('mouseleave', onDocumentMouseLeave)
+  scheduleDockScales(e.clientX, e.clientY)
 }
 
 function onBarPointerLeave(e: PointerEvent) {
   const bar = barRef.value
-  // Gaps between icons still belong to the bar — ignore internal hops.
   if (
     bar &&
     e.relatedTarget instanceof Node &&
@@ -195,21 +270,14 @@ function onBarPointerLeave(e: PointerEvent) {
   ) {
     return
   }
-  // Drop hot first so height/glyph transitions re-enable, then settle.
-  hot.value = false
-  hoveredId.value = null
-  pinnedTop = null
-  requestAnimationFrame(() => {
-    resetDockScales()
-    if (bar) {
-      bar.style.top = ''
-      bar.style.transform = ''
-    }
-  })
+  if (isPointerOverDock(e.clientX, e.clientY)) {
+    return
+  }
+  endHot()
 }
 
 function onBarPointerMove(e: PointerEvent) {
-  scheduleDockScales(e.clientY)
+  scheduleDockScales(e.clientX, e.clientY)
 }
 
 function onItemClick(item: (typeof dockItems.value)[number]) {
@@ -224,6 +292,14 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
   emit('select', item.id)
 }
 
+onUnmounted(() => {
+  document.removeEventListener('pointermove', onDocPointerMove)
+  document.documentElement.removeEventListener(
+    'mouseleave',
+    onDocumentMouseLeave,
+  )
+})
+
 </script>
 
 <template>
@@ -231,11 +307,15 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
     ref="barRef"
     class="index-bar"
     :class="{ hot }"
+    :style="{ '--hot-hit-width': `${HOT_HIT_WIDTH}px` }"
     :aria-label="t('a11y.groupIndex')"
     @pointerenter="onBarPointerEnter"
     @pointerleave="onBarPointerLeave"
     @pointermove="onBarPointerMove"
   >
+    <Teleport to="body">
+      <div v-show="hot" class="hot-veil" aria-hidden="true" />
+    </Teleport>
     <template v-for="(item, i) in dockItems" :key="item.id">
       <div
         v-if="i === anchors.length"
@@ -246,6 +326,7 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
         :ref="(el) => setItemRef(el, i)"
         type="button"
         class="item"
+        :data-dock-id="item.id"
         :class="{
           active: item.kind === 'group' && props.selectedId === item.id,
         }"
@@ -271,7 +352,7 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
   --index-pad-y: 5px;
   --index-pad-x: 4px;
   --item-size: 18px;
-  --item-gap: 8px;
+  --item-gap: 16px;
   --sep-height: 1px;
   position: fixed;
   left: 0;
@@ -297,6 +378,17 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
 
 .index-bar.hot {
   max-height: none;
+  /* Match peak magnified width so pointerleave tracks the live dock */
+  width: var(--hot-hit-width);
+}
+
+/* Dim bookmark list while Dock is hot (teleported — escapes bar transform) */
+.hot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--app-bg) 72%, transparent);
 }
 
 .separator {
@@ -313,13 +405,13 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
 
 .item {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   border: none;
   background: transparent;
   cursor: pointer;
   box-sizing: border-box;
-  width: 100%;
-  /* Slot grows with scale → keeps vertical gaps between neighbors */
+  /* Grow with --dock-scale so hit area matches glyph (CodePen li) */
+  width: calc(var(--item-size) * var(--dock-scale, 1));
   height: calc(var(--item-size) * var(--dock-scale, 1));
   flex-shrink: 0;
   padding: 0;
@@ -331,27 +423,28 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
   --dock-scale: 1;
   overflow: visible;
   transition:
+    width 220ms cubic-bezier(0.22, 1, 0.36, 1),
     height 220ms cubic-bezier(0.22, 1, 0.36, 1),
     color 160ms ease;
 }
 
 .index-bar.hot .item {
   color: var(--text-secondary);
-  /* 1:1 with pointer while hot */
+  /* 1:1 with pointer while hot — no size lag */
   transition: color 120ms ease;
 }
 
 .glyph {
   position: relative;
   z-index: 2;
-  /* Grow via layout size — avoid transform:scale bitmap blur */
   width: calc(var(--item-size) * var(--dock-scale, 1));
   height: calc(var(--item-size) * var(--dock-scale, 1));
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   flex-shrink: 0;
   margin-right: auto;
+  border-radius: 16%;
   transition:
     width 220ms cubic-bezier(0.22, 1, 0.36, 1),
     height 220ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -380,6 +473,8 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
 }
 
 .icon {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -398,7 +493,6 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
 
 .name.tooltip {
   position: absolute;
-  /* Sit past the live glyph width — follows --dock-scale, not the narrow hit box */
   left: calc(var(--item-size) * var(--dock-scale, 1) + 10px);
   top: 50%;
   transform: translateY(-50%);
@@ -406,11 +500,10 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
   text-orientation: mixed;
   letter-spacing: -0.01em;
   white-space: nowrap;
-  background: color-mix(in srgb, var(--elevated) 92%, transparent);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: var(--elevated);
+  box-shadow: var(--shadow-float);
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--hairline) 80%, transparent);
   color: var(--text-primary);
   font-size: 12px;
@@ -421,6 +514,7 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
 
 @media (prefers-reduced-motion: reduce) {
   .item {
+    width: var(--item-size);
     height: var(--item-size);
     transition: color 120ms ease;
   }
@@ -434,10 +528,12 @@ function onItemClick(item: (typeof dockItems.value)[number]) {
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  .hot-veil {
+    background: color-mix(in srgb, var(--app-bg) 88%, transparent);
+  }
+
   .name.tooltip {
     background: var(--elevated);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 }
 
