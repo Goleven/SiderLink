@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   settings: []
   add: []
+  search: []
   select: [id: string]
 }>()
 
@@ -27,6 +28,7 @@ let itemEls: (HTMLElement | null)[] = []
 const hot = ref(false)
 const hoveredId = ref<string | null>(null)
 
+const SEARCH_ID = '__search'
 const SETTINGS_ID = '__settings'
 const ADD_ID = '__add'
 
@@ -58,6 +60,12 @@ const dockItems = computed(() => [
     icon: a.icon,
     kind: 'group' as const,
   })),
+  {
+    id: SEARCH_ID,
+    name: t('a11y.search'),
+    icon: 'search' as const,
+    kind: 'search' as const,
+  },
   {
     id: SETTINGS_ID,
     name: t('a11y.settings'),
@@ -269,6 +277,10 @@ function onBarPointerMove(e: PointerEvent) {
 }
 
 function onItemClick(item: (typeof dockItems.value)[number]) {
+  if (item.kind === 'search') {
+    emit('search')
+    return
+  }
   if (item.kind === 'settings') {
     emit('settings')
     return
