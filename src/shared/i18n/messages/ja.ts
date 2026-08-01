@@ -49,7 +49,7 @@ export const ja: MessageSchema = {
     urlLabel: 'URL',
     groupLabel: 'グループ',
     delete: '削除',
-    deleteConfirmTitle: 'このお気に入りを削除しますか？',
+    deleteConfirmTitle: '「{name}」を削除しますか？',
     deleteConfirmMessage: '削除後しばらくは元に戻せます。',
     save: '保存',
     saveFailed: '保存できませんでした',
@@ -65,6 +65,9 @@ export const ja: MessageSchema = {
       'これはデフォルトグループです。名前は変更できますが、削除はできません。',
     defaultCannotDelete: 'デフォルトグループは削除できません',
     delete: '削除',
+    deleteConfirmTitle: '「{name}」を削除しますか？',
+    deleteConfirmMessage:
+      '中の {count} 件のお気に入りはデフォルトグループへ移ります。この操作は取り消せません。',
     save: '保存',
     saveFailed: '保存できませんでした',
     deleteFailed: '削除できませんでした',

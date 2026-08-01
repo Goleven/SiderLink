@@ -113,6 +113,12 @@ function openEditBookmark(id: string) {
   showEditBookmark.value = true
 }
 
+const deleteBookmarkTitle = computed(() =>
+  t('editBookmark.deleteConfirmTitle', {
+    name: deleteTarget.value?.title ?? '',
+  }),
+)
+
 function requestDeleteBookmark(id: string) {
   deleteTarget.value = store.bookmarks.find((b) => b.id === id) ?? null
   showDeleteConfirm.value = Boolean(deleteTarget.value)
@@ -239,7 +245,7 @@ function onGroupCreated(id: string) {
 
     <ConfirmDialog
       :open="showDeleteConfirm"
-      :title="t('editBookmark.deleteConfirmTitle')"
+      :title="deleteBookmarkTitle"
       :message="t('editBookmark.deleteConfirmMessage')"
       :confirm-label="t('editBookmark.delete')"
       :cancel-label="t('common.cancel')"

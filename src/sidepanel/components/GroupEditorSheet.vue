@@ -9,6 +9,7 @@ import type { Group } from '@/shared/types'
 import { useErrorMessage } from '../composables/useErrorMessage'
 import { useFavoritesStore } from '../stores/favorites'
 import AppIcon from './AppIcon.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 import IconPickerView from './IconPickerView.vue'
 
 const props = defineProps<{
@@ -29,16 +30,19 @@ const name = ref('')
 const icon = ref<string>(FALLBACK_GROUP_ICON)
 const error = ref('')
 const showPicker = ref(false)
+const showDeleteConfirm = ref(false)
 
 watch(
   () => [props.open, props.group, props.mode] as const,
   ([open, group, mode]) => {
     if (!open) {
       showPicker.value = false
+      showDeleteConfirm.value = false
       return
     }
     error.value = ''
     showPicker.value = false
+    showDeleteConfirm.value = false
     if (mode === 'create') {
       name.value = ''
       icon.value = FALLBACK_GROUP_ICON
@@ -50,6 +54,20 @@ watch(
 )
 
 const isDefault = computed(() => Boolean(props.group?.isDefault))
+
+const deleteBookmarkCount = computed(() => {
+  const id = props.group?.id
+  if (!id) return 0
+  return store.bookmarks.filter((b) => b.groupId === id).length
+})
+
+const deleteConfirmTitle = computed(() =>
+  t('group.deleteConfirmTitle', { name: props.group?.name ?? '' }),
+)
+
+const deleteConfirmMessage = computed(() =>
+  t('group.deleteConfirmMessage', { count: deleteBookmarkCount.value }),
+)
 
 function onPickIcon(id: string) {
   icon.value = id
@@ -73,12 +91,27 @@ async function save() {
   }
 }
 
-async function remove() {
+function requestDelete() {
   if (!props.group || props.group.isDefault) {
     error.value = t('group.defaultCannotDelete')
     return
   }
   error.value = ''
+  showDeleteConfirm.value = true
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false
+}
+
+async function confirmDelete() {
+  if (!props.group || props.group.isDefault) {
+    showDeleteConfirm.value = false
+    error.value = t('group.defaultCannotDelete')
+    return
+  }
+  error.value = ''
+  showDeleteConfirm.value = false
   try {
     await store.deleteGroup(props.group.id)
     emit('close')
@@ -120,7 +153,7 @@ async function remove() {
           v-if="mode === 'edit' && !isDefault"
           type="button"
           class="danger pressable"
-          @click="remove"
+          @click="requestDelete"
         >
           {{ t('group.delete') }}
         </button>
@@ -135,6 +168,17 @@ async function remove() {
       :selected="icon"
       @close="showPicker = false"
       @select="onPickIcon"
+    />
+
+    <ConfirmDialog
+      :open="showDeleteConfirm"
+      :title="deleteConfirmTitle"
+      :message="deleteConfirmMessage"
+      :confirm-label="t('group.delete')"
+      :cancel-label="t('common.cancel')"
+      danger
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
     />
   </div>
 </template>
@@ -237,4 +281,5 @@ input {
   background: rgba(255, 59, 48, 0.12);
   color: #ff3b30;
 }
+
 </style>

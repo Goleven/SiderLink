@@ -35,13 +35,14 @@ const ITEM_BASE = 18
 const INDEX_PAD_X = 4
 
 /**
- * CodePen (stevenlei/poNXLXK) model: peak = 1 + SCALE_EXTRA on the hovered
- * item; prev/next blend by vertical offset within that item.
+ * Dock.html sine falloff: pointer Y is the peak center; items within
+ * DOCK_RANGE (diameter) scale by sin, outside stay at 1.
  */
-const SCALE_EXTRA = 1.2
+const DOCK_RANGE = 360
+const DOCK_MAX = 3.3
 
 /** Hot hit strip = peak icon width + pad (not the resting narrow column). */
-const HOT_HIT_WIDTH = ITEM_BASE * (1 + SCALE_EXTRA) + INDEX_PAD_X * 2
+const HOT_HIT_WIDTH = ITEM_BASE * DOCK_MAX + INDEX_PAD_X * 2
 /** Apple-design leave hysteresis — brief edge jitter must not end hot. */
 const LEAVE_HYSTERESIS = 10
 
@@ -97,84 +98,71 @@ function resetAllScales() {
   }
 }
 
-function adjacentItem(
-  el: HTMLElement,
-  direction: 'previousElementSibling' | 'nextElementSibling',
-): HTMLElement | null {
-  let node: Element | null = el[direction]
-  while (node) {
-    if (node instanceof HTMLElement && node.classList.contains('item')) {
-      return node
-    }
-    node = node[direction]
-  }
-  return null
+/** Half-period sine bump in [0, 1]; 0 outside (Dock.html baseCure). */
+function baseCurve(x: number): number {
+  if (x < 0 || x > 1) return 0
+  return Math.sin(x * Math.PI)
 }
 
-function itemAtPoint(clientX: number, clientY: number): HTMLElement | null {
-  const hit = document.elementFromPoint(clientX, clientY)
-  const item = hit?.closest?.('.item') as HTMLElement | null
-  const bar = barRef.value
-  if (item && bar?.contains(item)) return item
-
-  // Gaps / overflow: nearest item by vertical mid
-  let best: HTMLElement | null = null
-  let bestDist = Infinity
-  for (const el of itemEls) {
-    if (!el) continue
-    const r = el.getBoundingClientRect()
-    const mid = r.top + r.height / 2
-    const d = Math.abs(clientY - mid)
-    if (d < bestDist) {
-      bestDist = d
-      best = el
-    }
+/** Scale curve centered on topY with diameter totalYDis (Dock.html createCure). */
+function createCurve(
+  totalYDis: number,
+  topY: number,
+  minY: number,
+  maxY: number,
+): (y: number) => number {
+  const beginY = topY - totalYDis / 2
+  const endY = topY + totalYDis / 2
+  const yDis = maxY - minY
+  return (y: number) => {
+    if (y < beginY || y > endY) return minY
+    return baseCurve((y - beginY) / totalYDis) * yDis + minY
   }
-  return best
 }
 
 /**
- * Vertical port of CodePen dock:
- * offset 0 = top of item, 1 = bottom; current always max; neighbors blend.
+ * Dock.html layout: every item midY samples the sine curve at pointer Y.
+ * Separator is not scaled. Tooltip follows the peak-scale item.
  */
-function applyDockScales(clientX: number, clientY: number) {
+function applyDockScales(clientY: number) {
   if (!barRef.value) return
 
-  resetAllScales()
-
   if (reduced.value) {
+    resetAllScales()
     hoveredId.value = null
     return
   }
 
-  const current = itemAtPoint(clientX, clientY)
-  if (!current) {
-    hoveredId.value = null
-    return
+  const curve = createCurve(DOCK_RANGE, clientY, 1, DOCK_MAX)
+
+  let bestEl: HTMLElement | null = null
+  let bestScale = 1
+  let bestDist = Infinity
+
+  for (const el of itemEls) {
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    const scale = curve(midY)
+    writeDockScale(el, scale)
+
+    const dist = Math.abs(clientY - midY)
+    if (scale > bestScale + 1e-6 || (Math.abs(scale - bestScale) <= 1e-6 && dist < bestDist)) {
+      bestScale = scale
+      bestDist = dist
+      bestEl = el
+    }
   }
 
-  const rect = current.getBoundingClientRect()
-  const offset = Math.min(
-    1,
-    Math.max(0, (clientY - rect.top) / Math.max(rect.height, 1)),
-  )
-
-  writeDockScale(current, 1 + SCALE_EXTRA)
-
-  const prev = adjacentItem(current, 'previousElementSibling')
-  if (prev) writeDockScale(prev, 1 + SCALE_EXTRA * (1 - offset))
-
-  const next = adjacentItem(current, 'nextElementSibling')
-  if (next) writeDockScale(next, 1 + SCALE_EXTRA * offset)
-
-  const id = current.dataset.dockId ?? null
+  const id =
+    bestScale > 1.02 && bestEl ? (bestEl.dataset.dockId ?? null) : null
   if (hoveredId.value !== id) hoveredId.value = id
 }
 
 function flushDockScales() {
   dockRaf = 0
   if (!pendingPointer) return
-  applyDockScales(pendingPointer.x, pendingPointer.y)
+  applyDockScales(pendingPointer.y)
 }
 
 function scheduleDockScales(clientX: number, clientY: number) {
