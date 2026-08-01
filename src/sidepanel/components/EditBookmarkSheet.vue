@@ -5,6 +5,7 @@ import type { BookmarkItem, Group } from '@/shared/types'
 import { useErrorMessage } from '../composables/useErrorMessage'
 import { useFavoritesStore } from '../stores/favorites'
 import AppSelect from './AppSelect.vue'
+import FaviconUrlField from './FaviconUrlField.vue'
 
 const props = defineProps<{
   open: boolean
@@ -22,6 +23,7 @@ const errorMessage = useErrorMessage()
 const store = useFavoritesStore()
 const title = ref('')
 const url = ref('')
+const faviconUrl = ref('')
 const groupId = ref('')
 const error = ref('')
 
@@ -31,6 +33,7 @@ watch(
     if (!open || !item) return
     title.value = item.title
     url.value = item.url
+    faviconUrl.value = item.faviconUrl ?? ''
     groupId.value = item.groupId
     error.value = ''
   },
@@ -42,9 +45,11 @@ async function save() {
   if (!props.item) return
   error.value = ''
   try {
+    const logo = faviconUrl.value.trim()
     await store.updateBookmark(props.item.id, {
       title: title.value,
       url: url.value,
+      faviconUrl: logo || null,
       groupId: groupId.value,
     })
     emit('close')
@@ -71,6 +76,11 @@ function requestDelete() {
         {{ t('editBookmark.urlLabel') }}
         <input v-model="url" type="url" />
       </label>
+      <FaviconUrlField
+        v-model="faviconUrl"
+        :label="t('editBookmark.faviconLabel')"
+        :placeholder="t('editBookmark.faviconPlaceholder')"
+      />
       <div class="field">
         {{ t('editBookmark.groupLabel') }}
         <AppSelect
@@ -157,6 +167,10 @@ input {
 .primary {
   background: var(--accent);
   color: #fff;
+}
+.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .danger {
   background: rgba(255, 59, 48, 0.12);

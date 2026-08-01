@@ -7,6 +7,7 @@ import { useErrorMessage } from '../composables/useErrorMessage'
 import { useReducedMotion } from '../composables/useReducedMotion'
 import { useFavoritesStore } from '../stores/favorites'
 import AppSelect from './AppSelect.vue'
+import FaviconUrlField from './FaviconUrlField.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -29,7 +30,7 @@ const { reduced } = useReducedMotion()
 
 const title = ref('')
 const url = ref('')
-const faviconUrl = ref<string | undefined>()
+const faviconUrl = ref('')
 const groupId = ref('')
 const error = ref('')
 const tabUnavailable = ref(false)
@@ -55,13 +56,13 @@ watch(
     groupId.value = resolveInitialGroupId()
     title.value = ''
     url.value = ''
-    faviconUrl.value = undefined
+    faviconUrl.value = ''
     tabUnavailable.value = false
     const tab = await store.fetchActiveTab()
     if (tab) {
       title.value = tab.title
       url.value = tab.url
-      faviconUrl.value = tab.favIconUrl
+      faviconUrl.value = tab.favIconUrl ?? ''
     } else {
       tabUnavailable.value = true
     }
@@ -102,16 +103,17 @@ async function fillFromCurrent() {
   tabUnavailable.value = false
   title.value = tab.title
   url.value = tab.url
-  faviconUrl.value = tab.favIconUrl
+  faviconUrl.value = tab.favIconUrl ?? ''
 }
 
 async function submit() {
   error.value = ''
   try {
+    const logo = faviconUrl.value.trim()
     await store.addBookmark({
       title: title.value,
       url: url.value,
-      faviconUrl: faviconUrl.value,
+      faviconUrl: logo || undefined,
       groupId: groupId.value || defaultGroupId.value,
     })
     emit('added')
@@ -140,6 +142,11 @@ async function submit() {
         {{ t('add.urlLabel') }}
         <input v-model="url" type="url" placeholder="https://" />
       </label>
+      <FaviconUrlField
+        v-model="faviconUrl"
+        :label="t('add.faviconLabel')"
+        :placeholder="t('add.faviconPlaceholder')"
+      />
       <div class="field">
         {{ t('add.groupLabel') }}
         <AppSelect
