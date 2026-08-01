@@ -314,7 +314,7 @@ onUnmounted(() => {
 .icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
   flex-shrink: 0;
   display: grid;

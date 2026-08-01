@@ -393,7 +393,7 @@ onUnmounted(() => {
 
 .separator {
   flex-shrink: 0;
-  width: 100%;
+  width: 18px;
   height: var(--sep-height);
   margin: 0;
   padding: 0;
