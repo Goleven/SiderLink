@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { sortGroups } from '@/shared/domain'
 import type { BookmarkItem, Group } from '@/shared/types'
@@ -16,6 +16,7 @@ import AddSheet from './components/AddSheet.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import EditBookmarkSheet from './components/EditBookmarkSheet.vue'
 import GroupEditorSheet from './components/GroupEditorSheet.vue'
+import SearchOverlay from './components/SearchOverlay.vue'
 import SettingsView from './components/SettingsView.vue'
 import StorageBanner from './components/StorageBanner.vue'
 import ToastHost from './components/ToastHost.vue'
@@ -25,6 +26,7 @@ const { show } = useToast()
 const { t, te } = useI18n()
 
 const showAdd = ref(false)
+const showSearch = ref(false)
 const showSettings = ref(false)
 const editItem = ref<BookmarkItem | null>(null)
 const showEditBookmark = ref(false)
@@ -93,6 +95,32 @@ const storageBannerMessage = computed(() => {
   return te(key) ? t(key) : key
 })
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+}
+
+function onSearchHotkey(e: KeyboardEvent) {
+  if (showSearch.value) return
+  if (showSettings.value) return
+  if (isEditableTarget(e.target)) return
+
+  const isSlash = e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey
+  const isModK =
+    (e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey) && !e.altKey
+
+  if (!isSlash && !isModK) return
+  e.preventDefault()
+  showSearch.value = true
+}
+
+async function onSearchOpen(id: string) {
+  showSearch.value = false
+  await store.openBookmark(id)
+}
+
 onMounted(() => {
   setSyncUiHooks({
     onRootReplaced: (root) => {
@@ -102,10 +130,15 @@ onMounted(() => {
       store.applySyncConfigLocal(config)
     },
   })
+  document.addEventListener('keydown', onSearchHotkey)
   void (async () => {
     await store.load()
     await pullOnActivate()
   })()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onSearchHotkey)
 })
 
 function openEditBookmark(id: string) {
@@ -209,6 +242,7 @@ function onGroupCreated(id: string) {
           :groups="store.groups"
           :selected-id="selectedGroupId"
           @select="selectedGroupId = $event"
+          @search="showSearch = true"
           @settings="showSettings = true"
           @add="showAdd = true"
         />
@@ -225,6 +259,13 @@ function onGroupCreated(id: string) {
       @close="showSettings = false"
       @create-group="openCreateGroup"
       @edit-group="openEditGroup"
+    />
+
+    <SearchOverlay
+      :open="showSearch"
+      :bookmarks="store.bookmarks"
+      @close="showSearch = false"
+      @open="onSearchOpen"
     />
 
     <AddSheet
