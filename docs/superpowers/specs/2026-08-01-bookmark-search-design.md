@@ -64,7 +64,17 @@ IndexBar / shortcuts → App (showSearch)
 | `App.vue` | Overlay visibility, shortcut wiring |
 | `IndexBar.vue` | Search action item |
 
-Visual polish (spacing, motion) follows existing sheet/overlay patterns and Apple response/material guidance; not locked in this spec beyond scrim + elevated panel.
+## UI / visual (Apple Design)
+
+This spec locks **behavior and structure** only (overlay, inputs, result cap, shortcuts, open-then-close). **Visual design, materials, motion, and press feedback** are owned by Apple Design principles at implementation time — not by pixel recipes in this document.
+
+Apply in particular:
+
+- **Response:** highlight on pointer-down; filter results as the user types (no debounce unless needed for perf).
+- **Materials:** dimming scrim + translucent elevated panel (`backdrop-filter`); content hierarchy via blur/opacity, not heavy chrome.
+- **Spatial consistency:** open/close along the same path; reduced-motion → short opacity cross-fade instead of spring travel.
+- **Familiarity:** reuse existing sheet/overlay tokens (e.g. `--elevated`, `.pressable`) and IndexBar action patterns so search feels like a sibling of Add/Settings, not a new idiom.
+- **Simplicity:** one job — type, pick, open. No extra chrome.
 
 ## i18n
 
