@@ -6,6 +6,7 @@ export const en = {
   a11y: {
     settings: 'Settings',
     add: 'Add',
+    search: 'Search',
     edit: 'Edit',
     more: 'More',
     back: 'Back',
@@ -15,6 +16,11 @@ export const en = {
     createGroup: 'Create group',
     editGroup: 'Edit group',
     pickIcon: 'Choose group icon',
+  },
+  search: {
+    placeholder: 'Search bookmarks',
+    emptyHint: 'Type to search',
+    noResults: 'No matches',
   },
   common: {
     cancel: 'Cancel',

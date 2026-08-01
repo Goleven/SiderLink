@@ -8,6 +8,7 @@ export const zhCN: MessageSchema = {
   a11y: {
     settings: '设置',
     add: '添加',
+    search: '搜索',
     edit: '编辑',
     more: '更多',
     back: '返回',
@@ -17,6 +18,11 @@ export const zhCN: MessageSchema = {
     createGroup: '新建分组',
     editGroup: '编辑分组',
     pickIcon: '选择分组图标',
+  },
+  search: {
+    placeholder: '搜索收藏',
+    emptyHint: '输入关键词搜索',
+    noResults: '无匹配结果',
   },
   common: {
     cancel: '取消',

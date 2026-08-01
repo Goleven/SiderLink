@@ -8,6 +8,7 @@ export const ja: MessageSchema = {
   a11y: {
     settings: '設定',
     add: '追加',
+    search: '検索',
     edit: '編集',
     more: 'その他',
     back: '戻る',
@@ -17,6 +18,11 @@ export const ja: MessageSchema = {
     createGroup: 'グループを作成',
     editGroup: 'グループを編集',
     pickIcon: 'グループアイコンを選択',
+  },
+  search: {
+    placeholder: 'ブックマークを検索',
+    emptyHint: 'キーワードを入力',
+    noResults: '一致する結果はありません',
   },
   common: {
     cancel: 'キャンセル',

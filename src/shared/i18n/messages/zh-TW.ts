@@ -8,6 +8,7 @@ export const zhTW: MessageSchema = {
   a11y: {
     settings: '設定',
     add: '新增',
+    search: '搜尋',
     edit: '編輯',
     more: '更多',
     back: '返回',
@@ -17,6 +18,11 @@ export const zhTW: MessageSchema = {
     createGroup: '新建分組',
     editGroup: '編輯分組',
     pickIcon: '選擇分組圖示',
+  },
+  search: {
+    placeholder: '搜尋收藏',
+    emptyHint: '輸入關鍵字搜尋',
+    noResults: '無符合結果',
   },
   common: {
     cancel: '取消',
