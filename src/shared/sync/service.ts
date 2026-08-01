@@ -253,6 +253,69 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     }
   }
 
+  /** Overwrite local with remote (repo wins). No LWW. */
+  async function forcePull(): Promise<SyncResult> {
+    let config = await loadConfig()
+    try {
+      if (config.mode !== 'git') return { ok: true, action: 'noop' }
+      const { token, ref, providerId } = requireGitReady(config)
+      const provider = getGitProvider(providerId)
+      const remoteFile = await provider.getFile({ accessToken: token }, ref)
+
+      if (!remoteFile) {
+        config = { ...clearError(config), lastPullAt: Date.now() }
+        await saveConfig(config)
+        return { ok: true, action: 'noop' }
+      }
+
+      const remote = parseRootJson(remoteFile.content)
+      await saveRoot(remote, 'remote')
+      config = { ...clearError(config), lastPullAt: Date.now() }
+      await saveConfig(config)
+      return { ok: true, action: 'pulled' }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'sync.pullFailed'
+      await saveConfig(withError(config, message))
+      return { ok: false, error: message }
+    }
+  }
+
+  /** Overwrite remote with local (local wins). No LWW. */
+  async function forcePush(): Promise<SyncResult> {
+    let config = await loadConfig()
+    try {
+      if (config.mode !== 'git') return { ok: true, action: 'noop' }
+      const { token, ref, providerId } = requireGitReady(config)
+      const provider = getGitProvider(providerId)
+      const local = await loadRoot()
+      const bumped: StorageRoot = {
+        ...local,
+        meta: { updatedAt: Date.now() },
+      }
+      await saveRoot(bumped, 'local')
+      await deps.onRootReplaced?.(bumped)
+
+      const remoteFile = await provider.getFile({ accessToken: token }, ref)
+      const sha = remoteFile?.sha ?? null
+
+      await provider.putFile(
+        { accessToken: token },
+        ref,
+        serializeRoot(bumped),
+        sha,
+        'chore: sync favorites',
+      )
+
+      config = { ...clearError(config), lastPushAt: Date.now() }
+      await saveConfig(config)
+      return { ok: true, action: 'pushed' }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'sync.pushFailed'
+      await saveConfig(withError(config, message))
+      return { ok: false, error: message }
+    }
+  }
+
   /** Check remote file; if missing push local; else LWW pull/push. */
   async function syncNow(): Promise<SyncResult> {
     let config = await loadConfig()
@@ -313,6 +376,8 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     disconnect,
     pull,
     push,
+    forcePull,
+    forcePush,
     syncNow,
   }
 }

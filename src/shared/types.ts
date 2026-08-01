@@ -45,7 +45,8 @@ export interface StorageRoot {
 
 export type SyncMode = 'off' | 'manual' | 'git'
 export type GitProviderId = 'github' | 'gitee' | 'gitlab'
-export type PullIntervalMinutes = 0 | 15 | 30 | 60
+/** -1 = manual sync only (no auto pull/push). */
+export type PullIntervalMinutes = -1 | 0 | 15 | 30 | 60
 
 export interface GitSyncSettings {
   provider: GitProviderId | null

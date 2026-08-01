@@ -45,10 +45,13 @@ Suggested token scopes:
 
 | Event | Behavior |
 |-------|----------|
-| Side panel activate | Pull once when Git connected |
-| Local persist | Debounced push (~3s) |
+| Side panel activate | Pull once when Git connected (**skipped** if pull interval is Manual) |
+| Local persist | Debounced push (~3s) (**skipped** if Manual) |
 | Pull interval (15/30/60 min) | `chrome.alarms` in service worker |
-| Sync now | Pull then push if local wins / remote missing |
+| Pull interval Manual (`-1`) | No auto pull/push; Settings shows **Pull** / **Push** |
+| Sync now | LWW: pull then push if local wins / remote missing (hidden in Manual) |
+| Force Pull | Always overwrite local with remote (repo wins; no LWW) |
+| Force Push | Always overwrite remote with local (local wins; bumps `meta.updatedAt`) |
 
 ## Extending providers
 

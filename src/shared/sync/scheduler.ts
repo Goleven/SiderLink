@@ -1,3 +1,8 @@
+import { getBrowser } from '../browser'
+import {
+  createSyncConfigRepository,
+  isManualPullInterval,
+} from '../storage/syncConfig'
 import type { StorageRoot, SyncLocalConfig } from '../types'
 import { createDefaultSyncEngine } from './service'
 
@@ -19,6 +24,19 @@ function engine() {
   return createDefaultSyncEngine(hooks)
 }
 
+async function loadConfig(): Promise<SyncLocalConfig> {
+  return createSyncConfigRepository(getBrowser().storage).load()
+}
+
+async function allowsAutoSync(): Promise<boolean> {
+  const config = await loadConfig()
+  return (
+    config.mode === 'git' &&
+    config.git.connected &&
+    !isManualPullInterval(config.pullIntervalMinutes)
+  )
+}
+
 export function scheduleAutoPush(): void {
   if (pushTimer) clearTimeout(pushTimer)
   pushTimer = setTimeout(() => {
@@ -32,6 +50,7 @@ async function runAutoPush(): Promise<void> {
     scheduleAutoPush()
     return
   }
+  if (!(await allowsAutoSync())) return
   syncing = true
   try {
     await engine().push()
@@ -44,6 +63,7 @@ async function runAutoPush(): Promise<void> {
 
 export async function pullOnActivate(): Promise<void> {
   if (syncing) return
+  if (!(await allowsAutoSync())) return
   syncing = true
   try {
     await engine().pull()
@@ -56,6 +76,14 @@ export async function pullOnActivate(): Promise<void> {
 
 export async function runSyncNow() {
   return engine().syncNow()
+}
+
+export async function runForcePull() {
+  return engine().forcePull()
+}
+
+export async function runForcePush() {
+  return engine().forcePush()
 }
 
 export async function runTest(accessToken?: string) {

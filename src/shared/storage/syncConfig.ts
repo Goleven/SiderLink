@@ -8,6 +8,9 @@ import type {
 } from '../types'
 import { SYNC_CONFIG_KEY } from './keys'
 
+/** Sentinel: user-driven sync only; disables activate pull, debounce push, alarms. */
+export const MANUAL_PULL_INTERVAL = -1 as const satisfies PullIntervalMinutes
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -21,7 +24,19 @@ function isProvider(value: unknown): value is GitProviderId {
 }
 
 function isPullInterval(value: unknown): value is PullIntervalMinutes {
-  return value === 0 || value === 15 || value === 30 || value === 60
+  return (
+    value === MANUAL_PULL_INTERVAL ||
+    value === 0 ||
+    value === 15 ||
+    value === 30 ||
+    value === 60
+  )
+}
+
+export function isManualPullInterval(
+  value: PullIntervalMinutes,
+): boolean {
+  return value === MANUAL_PULL_INTERVAL
 }
 
 export function parseSyncConfig(raw: unknown): SyncLocalConfig {

@@ -12,6 +12,12 @@ import {
   readFileAsText,
 } from '@/shared/sync/exportImport'
 import {
+  MANUAL_PULL_INTERVAL,
+  isManualPullInterval,
+} from '@/shared/storage/syncConfig'
+import {
+  runForcePull,
+  runForcePush,
   runSave,
   runSyncNow,
   runTest,
@@ -92,11 +98,16 @@ const providerOptions = computed(() => [
 ])
 
 const pullIntervalOptions = computed(() => [
+  { value: String(MANUAL_PULL_INTERVAL), label: t('settings.syncPullManual') },
   { value: '0', label: t('settings.syncPullOnActivate') },
   { value: '15', label: t('settings.syncPull15') },
   { value: '30', label: t('settings.syncPull30') },
   { value: '60', label: t('settings.syncPull60') },
 ])
+
+const isManualSync = computed(() =>
+  isManualPullInterval(store.syncConfig.pullIntervalMinutes),
+)
 
 const syncModeIndex = computed(() => {
   const mode = store.syncConfig.mode
@@ -356,6 +367,35 @@ async function onSyncNow() {
   try {
     const result = await runSyncNow()
     if (result.ok) show(t('sync.synced'))
+    else show(syncErrorText(result.error))
+  } finally {
+    syncBusy.value = false
+  }
+}
+
+async function onForcePull() {
+  syncBusy.value = true
+  try {
+    const result = await runForcePull()
+    if (result.ok) {
+      show(
+        result.action === 'pulled'
+          ? t('sync.forcePulled')
+          : t('sync.forcePullEmpty'),
+      )
+    } else {
+      show(syncErrorText(result.error))
+    }
+  } finally {
+    syncBusy.value = false
+  }
+}
+
+async function onForcePush() {
+  syncBusy.value = true
+  try {
+    const result = await runForcePush()
+    if (result.ok) show(t('sync.forcePushed'))
     else show(syncErrorText(result.error))
   } finally {
     syncBusy.value = false
@@ -789,6 +829,7 @@ async function onBack() {
             {{ syncBusy ? t('settings.syncBusy') : t('settings.syncSave') }}
           </button>
           <button
+            v-if="!isManualSync"
             type="button"
             class="sync-btn primary pressable"
             :disabled="syncBusy || !store.syncConfig.git.connected"
@@ -810,6 +851,25 @@ async function onBack() {
             :aria-label="t('settings.syncPullInterval')"
             @update:model-value="setPullInterval"
           />
+        </div>
+
+        <div v-if="isManualSync" class="sync-actions">
+          <button
+            type="button"
+            class="sync-btn pressable"
+            :disabled="syncBusy || !store.syncConfig.git.connected"
+            @click="onForcePull"
+          >
+            {{ syncBusy ? t('settings.syncBusy') : t('settings.syncForcePull') }}
+          </button>
+          <button
+            type="button"
+            class="sync-btn primary pressable"
+            :disabled="syncBusy || !store.syncConfig.git.connected"
+            @click="onForcePush"
+          >
+            {{ syncBusy ? t('settings.syncBusy') : t('settings.syncForcePush') }}
+          </button>
         </div>
 
         <button

@@ -14,5 +14,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Avoid HTML modulepreload of SW-shared chunks (Chrome cross-world mismatch).
+    modulePreload: false,
   },
 })
