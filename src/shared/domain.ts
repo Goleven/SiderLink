@@ -1,3 +1,10 @@
+/**
+ * Pure domain mutations for favorites data.
+ *
+ * All functions clone the root, never mutate the input, and keep per-group /
+ * per-list `order` fields dense (0..n-1) via `reindexOrders` after moves/deletes.
+ * Callers (Pinia store) are responsible for persisting and bumping `meta.updatedAt`.
+ */
 import { createId } from './ids'
 import { FALLBACK_GROUP_ICON, resolveGroupIconId } from './icons'
 import { reindexOrders, sortByOrder } from './order'
@@ -78,6 +85,11 @@ export function addBookmark(
   return next
 }
 
+/**
+ * Patch a bookmark's fields. Cross-group moves append to the target group's
+ * end (`order = length`) and reindex the source group so orders stay dense.
+ * Same-group field edits leave `order` unchanged.
+ */
 export function updateBookmark(
   root: StorageRoot,
   id: string,
@@ -136,6 +148,7 @@ export function updateBookmark(
 
   next.bookmarks[idx] = updated
 
+  // Cross-group: append to target, close the gap in the old group.
   if (groupId !== current.groupId) {
     const others = next.bookmarks.filter(
       (b) => b.id !== id && b.groupId === groupId,
@@ -152,6 +165,7 @@ export function updateBookmark(
   return next
 }
 
+/** Remove a bookmark and reindex remaining items in its group. */
 export function deleteBookmark(root: StorageRoot, id: string): StorageRoot {
   const next = cloneRoot(root)
   const target = next.bookmarks.find((b) => b.id === id)
@@ -212,6 +226,10 @@ export function updateGroup(
   return next
 }
 
+/**
+ * Delete a non-default group. Its bookmarks are appended (in order) to the
+ * default group rather than deleted; remaining groups are reindexed.
+ */
 export function deleteGroup(root: StorageRoot, id: string): StorageRoot {
   const next = cloneRoot(root)
   const group = next.groups.find((g) => g.id === id)
@@ -224,6 +242,7 @@ export function deleteGroup(root: StorageRoot, id: string): StorageRoot {
   const inDefault = sortByOrder(
     stay.filter((b) => b.groupId === defaultGroup.id),
   )
+  // Append deleted-group bookmarks after existing default-group items.
   const moved = moving.map((b, i) => ({
     ...b,
     groupId: defaultGroup.id,
@@ -237,6 +256,10 @@ export function deleteGroup(root: StorageRoot, id: string): StorageRoot {
   return next
 }
 
+/**
+ * Apply a full permutation of group ids (must be a complete, exact set).
+ * Used by settings drag-reorder; rejects partial or unknown id lists.
+ */
 export function reorderGroups(
   root: StorageRoot,
   orderedIds: string[],
@@ -258,6 +281,11 @@ export function reorderGroups(
   return next
 }
 
+/**
+ * Insert a bookmark at `toIndex` within `toGroupId` (clamped to list bounds).
+ * Same-group moves rebuild only the target list; cross-group also reindexes
+ * the source list. Other groups' bookmarks are left untouched.
+ */
 export function moveBookmark(
   root: StorageRoot,
   bookmarkId: string,
@@ -289,6 +317,7 @@ export function moveBookmark(
   if (fromGroupId !== toGroupId) {
     fromList = reindexOrders(sortByOrder(fromList))
   } else {
+    // Same-group: targetList already contains the full reordered result.
     fromList = []
   }
 

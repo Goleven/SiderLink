@@ -40,7 +40,14 @@ type GroupDrag = {
 
 /**
  * Lightweight drag reorder using pointer capture.
- * Bookmark / settings-group drag: lifts row out of flow, shifts peers to show insert slot, commits on release.
+ *
+ * Flow:
+ * 1. pointerdown → capture; wait for >10px move (click vs drag)
+ * 2. activateLift → fixed positioning + spacer to preserve list height
+ * 3. pointermove → update preview insert index; translateY peers below slot
+ * 4. pointerup → commit via onMoveBookmark / onReorderGroups; suppress click
+ *
+ * Bookmarks may cross groups (`sectionAtPoint`); groups stay within `.group-list`.
  */
 export function useDragReorder(opts: {
   enabled: Ref<boolean>
@@ -146,12 +153,13 @@ export function useDragReorder(opts: {
     ].filter((r) => r.dataset.settingsGroupId !== groupId)
   }
 
-  /** Insert index among peers: first peer whose midY is below pointer. */
+  /** Read active peer shift so hit-testing can use resting (pre-shift) midY. */
   function currentTranslateY(el: HTMLElement): number {
     const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform)
     return m ? Number(m[1]) : 0
   }
 
+  /** Insert index among peers: first peer whose resting midY is below pointer. */
   function insertIndexAtY(peers: HTMLElement[], clientY: number): number {
     for (let i = 0; i < peers.length; i++) {
       const peer = peers[i]!
@@ -163,6 +171,10 @@ export function useDragReorder(opts: {
     return peers.length
   }
 
+  /**
+   * Resolve which group section the pointer is over for cross-group drops.
+   * elementFromPoint first; if over a gap/chrome, nearest section by Y.
+   */
   function sectionAtPoint(clientX: number, clientY: number): HTMLElement | null {
     const point = document.elementFromPoint(clientX, clientY)
     const section = point?.closest('[data-group-id]') as HTMLElement | null
@@ -252,6 +264,10 @@ export function useDragReorder(opts: {
     applyGroupPeerShifts(state, peers)
   }
 
+  /**
+   * Promote the row to fixed positioning under the cursor.
+   * `gapPx` is included in rowHeight so peer shifts match flex gap spacing.
+   */
   function activateLift(
     state: BookmarkDrag | GroupDrag,
     e: PointerEvent,
@@ -313,6 +329,7 @@ export function useDragReorder(opts: {
       if (!dragging || dragging.kind !== 'bookmark' || dragging.id !== bookmarkId)
         return
       const dy = e.clientY - dragging.startY
+      // 10px slop: short presses remain clicks (open bookmark).
       if (!dragging.moved && Math.abs(dy) > 10) {
         dragging.moved = true
         activateLift(dragging, e, 6)
@@ -344,6 +361,7 @@ export function useDragReorder(opts: {
       updateBookmarkPreview(state, e.clientX, e.clientY)
       const toGroupId = state.previewGroupId
       const toIndex = state.previewIndex
+      // Lifted row would otherwise synthesize a click on the drop target.
       suppressNextClick(el)
 
       try {
@@ -416,6 +434,7 @@ export function useDragReorder(opts: {
       }
 
       updateGroupPreview(state, e.clientY)
+      // Rebuild full ordered id list: peers (without dragged) + insert at previewIndex.
       const peers = settingsGroupPeers(state.list, groupId)
       const peerIds = peers
         .map((p) => p.dataset.settingsGroupId)
@@ -432,6 +451,7 @@ export function useDragReorder(opts: {
 
       suppressNextClick(el)
 
+      // No-op drop (same order) — skip persist.
       if (
         next.length !== current.length ||
         next.every((id, i) => id === current[i])

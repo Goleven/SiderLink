@@ -1,3 +1,13 @@
+/**
+ * Git-backed sync engine (whole-file LWW).
+ *
+ * Strategy:
+ * - Compare `meta.updatedAt` via `chooseLwwWinner` (see lww.ts).
+ * - `pull` / `push` / `syncNow` respect LWW; `forcePull` / `forcePush` skip it.
+ * - Remote wins → `saveRoot(..., 'remote')` which fires `onRootReplaced` so the
+ *   UI can apply data without bumping `meta.updatedAt` / auto-pushing.
+ * - SHA conflicts on put (`sync.conflict`) retry through `syncNow`.
+ */
 import { getBrowser } from '../browser'
 import { createRepository } from '../storage/repository'
 import {
@@ -98,6 +108,11 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     return deps.rootRepo.load()
   }
 
+  /**
+   * Persist root. `source: 'remote'` notifies UI hooks so the store can
+   * replace in-memory state without treating it as a local edit (no
+   * meta bump / no scheduleAutoPush).
+   */
   async function saveRoot(
     root: StorageRoot,
     source: 'local' | 'remote',
@@ -175,6 +190,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     return { ok: true, action: 'noop' }
   }
 
+  /** Fetch remote; apply only if LWW says remote is newer. Missing file → noop. */
   async function pull(): Promise<SyncResult> {
     let config = await loadConfig()
     try {
@@ -206,6 +222,10 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     }
   }
 
+  /**
+   * Push local if it wins LWW (or remote is missing). If remote is newer,
+   * pull instead. On optimistic-concurrency conflict, fall back to syncNow.
+   */
   async function push(): Promise<SyncResult> {
     let config = await loadConfig()
     try {
@@ -237,6 +257,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
           'chore: sync favorites',
         )
       } catch (e) {
+        // Concurrent update on the provider side — re-resolve via full sync.
         if (e instanceof Error && e.message === 'sync.conflict') {
           return syncNow()
         }
@@ -280,7 +301,10 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     }
   }
 
-  /** Overwrite remote with local (local wins). No LWW. */
+  /**
+   * Overwrite remote with local (local wins). No LWW.
+   * Bumps meta.updatedAt and refreshes UI so subsequent LWW pulls keep local.
+   */
   async function forcePush(): Promise<SyncResult> {
     let config = await loadConfig()
     try {
@@ -293,6 +317,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         meta: { updatedAt: Date.now() },
       }
       await saveRoot(bumped, 'local')
+      // forcePush saves as 'local' (no onRootReplaced); notify UI explicitly.
       await deps.onRootReplaced?.(bumped)
 
       const remoteFile = await provider.getFile({ accessToken: token }, ref)

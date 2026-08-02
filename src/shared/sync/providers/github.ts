@@ -1,3 +1,8 @@
+/**
+ * GitHub Contents API adapter.
+ * `RemoteFile.sha` is the blob sha required by PUT for updates;
+ * 409 / 422 → `sync.conflict` for the engine's LWW retry path.
+ */
 import { decodeBase64ToUtf8, encodeUtf8ToBase64 } from '../base64'
 import type { GitSyncProvider, RemoteFile } from './types'
 
@@ -83,6 +88,7 @@ export const githubProvider: GitSyncProvider = {
     if (res.status === 401 || res.status === 403) {
       throw new Error('sync.tokenInvalid')
     }
+    // 409 = sha mismatch; 422 = validation (often stale sha / missing sha).
     if (res.status === 409 || res.status === 422) {
       throw new Error('sync.conflict')
     }

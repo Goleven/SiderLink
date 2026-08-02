@@ -1,3 +1,14 @@
+/**
+ * Side-panel sync orchestration (debounced auto-push + activate pull).
+ *
+ * Distinct from the SW alarm path in `background/index.ts`:
+ * - Alarm → periodic `engine.pull()` when `pullIntervalMinutes > 0`
+ * - Here → UI-driven: local edits debounce into `push`; panel open runs `pull`
+ *
+ * Auto sync is disabled when `pullIntervalMinutes === -1` (manual-only mode).
+ * A process-local `syncing` lock serializes overlapping push/pull; if a push
+ * is requested while busy, it reschedules rather than dropping the change.
+ */
 import { getBrowser } from '../browser'
 import {
   createSyncConfigRepository,
@@ -6,9 +17,11 @@ import {
 import type { StorageRoot, SyncLocalConfig } from '../types'
 import { createDefaultSyncEngine } from './service'
 
+/** Coalesce rapid local edits (drag, form save) into one push. */
 const PUSH_DEBOUNCE_MS = 3000
 
 let pushTimer: ReturnType<typeof setTimeout> | null = null
+/** Prevents concurrent engine calls within this JS context. */
 let syncing = false
 
 let hooks: {
@@ -16,6 +29,7 @@ let hooks: {
   onConfigUpdated?: (config: SyncLocalConfig) => void | Promise<void>
 } = {}
 
+/** Wire store/UI callbacks so remote replaces update Pinia without a second write. */
 export function setSyncUiHooks(next: typeof hooks): void {
   hooks = next
 }
@@ -28,6 +42,7 @@ async function loadConfig(): Promise<SyncLocalConfig> {
   return createSyncConfigRepository(getBrowser().storage).load()
 }
 
+/** Git connected and not in manual-only pull interval (-1). */
 async function allowsAutoSync(): Promise<boolean> {
   const config = await loadConfig()
   return (
@@ -37,6 +52,7 @@ async function allowsAutoSync(): Promise<boolean> {
   )
 }
 
+/** Debounced push after local persist (favorites store `touch !== false`). */
 export function scheduleAutoPush(): void {
   if (pushTimer) clearTimeout(pushTimer)
   pushTimer = setTimeout(() => {
@@ -47,6 +63,7 @@ export function scheduleAutoPush(): void {
 
 async function runAutoPush(): Promise<void> {
   if (syncing) {
+    // Still busy (e.g. activate pull) — try again after another debounce.
     scheduleAutoPush()
     return
   }
@@ -61,6 +78,7 @@ async function runAutoPush(): Promise<void> {
   }
 }
 
+/** One-shot pull when the side panel becomes active; skips if already syncing. */
 export async function pullOnActivate(): Promise<void> {
   if (syncing) return
   if (!(await allowsAutoSync())) return

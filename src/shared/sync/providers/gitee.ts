@@ -1,3 +1,8 @@
+/**
+ * Gitee Contents API adapter (GitHub-like, with quirks).
+ * Missing path often returns `[]` with HTTP 200 (not 404).
+ * Create = POST without sha; update = PUT with sha.
+ */
 import { decodeBase64ToUtf8, encodeUtf8ToBase64 } from '../base64'
 import type { GitSyncProvider, RemoteFile } from './types'
 
@@ -75,6 +80,7 @@ export const giteeProvider: GitSyncProvider = {
     if (sha) body.sha = sha
     if (ref.branch) body.branch = ref.branch
 
+    // Gitee requires POST to create and PUT to update (unlike GitHub's single PUT).
     const method = sha ? 'PUT' : 'POST'
     const res = await fetch(
       `https://gitee.com/api/v5/repos/${encodeURIComponent(ref.owner)}/${encodeURIComponent(ref.repo)}/contents/${encodePath(ref.path)}`,

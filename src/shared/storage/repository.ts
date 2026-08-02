@@ -1,3 +1,11 @@
+/**
+ * Persistence adapter for StorageRoot under chrome.storage.local.
+ *
+ * `load` always runs `migrate`. Side effects depend on migrate flags:
+ * - `backedUp` → stash original raw under BACKUP_KEY, then write defaults
+ * - `repaired` or empty → write the normalized root back (no backup)
+ * - clean load → read-only, no write
+ */
 import type { StorageAreaLike } from '../browser/types'
 import type { StorageRoot } from '../types'
 import { BACKUP_KEY, STORAGE_KEY } from './keys'
@@ -16,6 +24,7 @@ export function createRepository(area: StorageAreaLike): FavoritesRepository {
       const { root, backedUp, repaired } = migrate(raw)
 
       if (backedUp) {
+        // Preserve corrupt payload for debugging / manual recovery.
         await area.set({
           [BACKUP_KEY]: raw ?? null,
           [STORAGE_KEY]: root,

@@ -1,3 +1,12 @@
+/**
+ * GitLab Repository Files API adapter.
+ *
+ * Differs from GitHub Contents API:
+ * - Path segments joined with `%2F` (single path param, not `/`)
+ * - Optimistic concurrency uses `last_commit_id` (mapped to RemoteFile.sha),
+ *   not blob sha
+ * - Create = POST, update = PUT (same as Gitee)
+ */
 import { decodeBase64ToUtf8 } from '../base64'
 import type { GitSyncProvider, RemoteFile } from './types'
 
@@ -12,6 +21,7 @@ function projectPath(owner: string, repo: string): string {
   return encodeURIComponent(`${owner}/${repo}`)
 }
 
+/** GitLab expects the file path as one URL segment with `/` → `%2F`. */
 function encodeFilePath(path: string): string {
   return path
     .split('/')
@@ -60,6 +70,7 @@ export const gitlabProvider: GitSyncProvider = {
       data.encoding === 'base64'
         ? decodeBase64ToUtf8(data.content)
         : data.content
+    // Prefer last_commit_id for update concurrency; blob_id is a fallback.
     const sha = data.last_commit_id || data.blob_id || ''
     if (!sha) throw new Error('sync.pullFailed')
     return { content, sha }
@@ -73,6 +84,7 @@ export const gitlabProvider: GitSyncProvider = {
       commit_message: message,
       encoding: 'text',
     }
+    // sha present → update existing file (PUT); else create (POST).
     if (sha) {
       const res = await fetch(
         `https://gitlab.com/api/v4/projects/${projectPath(ref.owner, ref.repo)}/repository/files/${encodeFilePath(ref.path)}`,

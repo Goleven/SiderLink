@@ -13,6 +13,7 @@ export function parseRootJson(text: string): StorageRoot {
     throw new Error('sync.invalidJson')
   }
   const { root, backedUp } = migrate(raw)
+  // backedUp means migrate reset to defaults — reject as invalid sync payload.
   if (backedUp) {
     throw new Error('sync.invalidPayload')
   }

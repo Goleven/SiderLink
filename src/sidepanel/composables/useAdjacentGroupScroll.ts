@@ -1,3 +1,14 @@
+/**
+ * Edge overscroll → switch to the adjacent group (trackpad / wheel).
+ *
+ * State machine while at scroll top/bottom and wheel continues outward:
+ * 1. Accumulate |deltaY| until OVERSCROLL_THRESHOLD
+ * 2. Switch selectedGroupId; scroll next group to top (down) or bottom (up)
+ * 3. Enter SWITCH_COOLDOWN_MS so momentum does not chain-switch groups
+ *
+ * Reversing wheel direction or leaving the edge clears the accumulator.
+ * Uses `{ passive: false }` so preventDefault can block native bounce.
+ */
 import {
   nextTick,
   onBeforeUnmount,
@@ -5,8 +16,11 @@ import {
   type Ref,
 } from 'vue'
 
+/** Treat sub-pixel remainder as "at edge". */
 const EDGE_EPSILON = 1
+/** Cumulative |deltaY| at the edge required before switching groups. */
 const OVERSCROLL_THRESHOLD = 80
+/** Ignore further wheel after a switch (trackpad inertia). */
 const SWITCH_COOLDOWN_MS = 400
 
 export function useAdjacentGroupScroll(opts: {
@@ -17,6 +31,7 @@ export function useAdjacentGroupScroll(opts: {
 }) {
   let attachedEl: HTMLElement | null = null
   let accumulated = 0
+  /** +1 down / -1 up; used to reset accum when the user reverses. */
   let lastSign = 0
   let cooldownUntil = 0
 
@@ -28,6 +43,7 @@ export function useAdjacentGroupScroll(opts: {
   function edges(el: HTMLElement) {
     const { scrollTop, scrollHeight, clientHeight } = el
     const maxScroll = scrollHeight - clientHeight
+    // Content shorter than viewport: both edges are "active".
     const fits = maxScroll <= EDGE_EPSILON
     return {
       atTop: fits || scrollTop <= EDGE_EPSILON,
@@ -42,6 +58,7 @@ export function useAdjacentGroupScroll(opts: {
     await nextTick()
     const el = opts.scrollEl.value
     if (!el) return
+    // Continuity: arriving from below opens at top; from above opens at bottom.
     if (place === 'top') {
       el.scrollTop = 0
     } else {
@@ -67,6 +84,7 @@ export function useAdjacentGroupScroll(opts: {
     const overscrollUp = atTop && goingUp
     const overscrollDown = atBottom && goingDown
 
+    // Normal in-list scrolling — do not interfere.
     if (!overscrollUp && !overscrollDown) {
       clearAccum()
       return
