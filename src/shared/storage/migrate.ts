@@ -1,3 +1,14 @@
+/**
+ * Normalize raw chrome.storage / import JSON into a valid StorageRoot.
+ *
+ * Two failure modes:
+ * - **Structural corruption** (wrong version, missing arrays, unparseable
+ *   items/settings) → reset to `createDefaultRoot()`, set `backedUp: true`
+ *   so the repository can preserve the original blob under BACKUP_KEY.
+ * - **Soft repair** (missing/duplicate default group, orphan bookmarks,
+ *   version bump, missing meta) → keep data, set `repaired: true` only;
+ *   `backedUp` stays false (no backup write needed).
+ */
 import { createDefaultRoot, STORAGE_VERSION } from '../defaults'
 import { createId } from '../ids'
 import { DEFAULT_GROUP_ICON, resolveGroupIconId } from '../icons'
@@ -15,7 +26,9 @@ import type {
 
 export interface MigrateResult {
   root: StorageRoot
+  /** Soft fixes applied (default group, orphans, version/meta). */
   repaired: boolean
+  /** Irrecoverable shape → reset to defaults; caller should back up raw. */
   backedUp: boolean
 }
 
@@ -38,12 +51,16 @@ function parseSettings(raw: unknown): Settings | null {
   if (!isThemeMode(raw.themeMode)) return null
   if (typeof raw.backgroundId !== 'string' || !raw.backgroundId) return null
   const locale = isAppLocale(raw.locale) ? raw.locale : DEFAULT_LOCALE
+  // Missing flag → treat as completed so existing installs are not interrupted.
+  const hasCompletedTour =
+    typeof raw.hasCompletedTour === 'boolean' ? raw.hasCompletedTour : true
   return {
     openInNewTab: raw.openInNewTab,
     indexBarMode: raw.indexBarMode,
     themeMode: raw.themeMode,
     backgroundId: raw.backgroundId,
     locale,
+    hasCompletedTour,
   }
 }
 
@@ -94,6 +111,7 @@ function parseBookmark(raw: unknown): BookmarkItem | null {
   return item
 }
 
+/** Ensure exactly one default group: create if missing, demote extras. */
 function ensureDefaultGroup(groups: Group[]): { groups: Group[]; repaired: boolean } {
   let repaired = false
   const defaults = groups.filter((g) => g.isDefault)
@@ -109,6 +127,7 @@ function ensureDefaultGroup(groups: Group[]): { groups: Group[]; repaired: boole
     })
     repaired = true
   } else if (defaults.length > 1) {
+    // Keep the first default; clear isDefault on the rest.
     let kept = false
     next = next.map((g) => {
       if (!g.isDefault) return g
@@ -124,6 +143,7 @@ function ensureDefaultGroup(groups: Group[]): { groups: Group[]; repaired: boole
   return { groups: next, repaired }
 }
 
+/** Re-home bookmarks whose groupId no longer exists into the default group. */
 function repairBookmarks(
   bookmarks: BookmarkItem[],
   groups: Group[],
@@ -145,14 +165,16 @@ function repairBookmarks(
 }
 
 function isSupportedVersion(version: unknown): version is number {
-  return version === 1 || version === 2
+  return version === 1 || version === 2 || version === 3
 }
 
 export function migrate(raw: unknown): MigrateResult {
+  // First install / empty storage — defaults, no repair flag.
   if (raw == null) {
     return { root: createDefaultRoot(), repaired: false, backedUp: false }
   }
 
+  // Hard failures below: reset + ask repository to back up the raw blob.
   if (!isObject(raw) || !isSupportedVersion(raw.version)) {
     return { root: createDefaultRoot(), repaired: true, backedUp: true }
   }
@@ -184,6 +206,7 @@ export function migrate(raw: unknown): MigrateResult {
     bookmarks.push(parsed)
   }
 
+  // Soft repairs: keep parsed data, write-back only if something changed.
   let repaired = raw.version !== STORAGE_VERSION
   const ensured = ensureDefaultGroup(groups)
   repaired = repaired || ensured.repaired

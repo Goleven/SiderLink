@@ -1,3 +1,14 @@
+/**
+ * Side panel entry: Vue app + SW lifecycle messages + storage mirroring.
+ *
+ * Messages (see background/index.ts):
+ * - notify `side-panel-opened` / `side-panel-closed` so toggle knows open state
+ * - handle `close-side-panel` from SW when chrome.sidePanel.close is unavailable
+ * - forward locale changes so context menus rebuild in the new language
+ *
+ * chrome.storage.onChanged keeps this panel in sync when the SW (context menu
+ * add) or another window mutates STORAGE_KEY / SYNC_CONFIG_KEY.
+ */
 import { createApp, watch } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
@@ -9,6 +20,7 @@ import { migrate } from '@/shared/storage/migrate'
 import { parseSyncConfig } from '@/shared/storage/syncConfig'
 import './styles/tokens.css'
 import './styles/base.css'
+import './styles/tour.css'
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === 'close-side-panel') {
@@ -53,6 +65,7 @@ watch(
   { immediate: true },
 )
 
+// External writes (SW / other panels) → memory only; avoid write loops.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return
   if (changes[STORAGE_KEY]?.newValue != null) {

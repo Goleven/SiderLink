@@ -18,7 +18,7 @@ describe('migrate', () => {
     expect(again.backedUp).toBe(false)
   })
 
-  it('upgrades v1 root without meta to v2', () => {
+  it('upgrades v1 root without meta to current version', () => {
     const base = migrate(null).root
     const v1 = {
       version: 1,
@@ -31,6 +31,22 @@ describe('migrate', () => {
     expect(repaired).toBe(true)
     expect(root.version).toBe(STORAGE_VERSION)
     expect(typeof root.meta.updatedAt).toBe('number')
+  })
+
+  it('defaults missing hasCompletedTour to true for existing settings', () => {
+    const base = migrate(null).root
+    const { hasCompletedTour: _drop, ...legacySettings } = base.settings
+    const legacy = {
+      version: 2,
+      groups: base.groups,
+      bookmarks: base.bookmarks,
+      settings: legacySettings,
+      meta: base.meta,
+    }
+    const { root, repaired } = migrate(legacy)
+    expect(repaired).toBe(true)
+    expect(root.version).toBe(STORAGE_VERSION)
+    expect(root.settings.hasCompletedTour).toBe(true)
   })
 
   it('backs up and resets on irreparable payload', () => {

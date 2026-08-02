@@ -9,6 +9,7 @@ import { useTheme } from './composables/useTheme'
 import { useToast } from './composables/useToast'
 import { useAdjacentGroupScroll } from './composables/useAdjacentGroupScroll'
 import { useDragReorder } from './composables/useDragReorder'
+import { useOnboardingTour } from './composables/useOnboardingTour'
 import { useScrollEdgeFades } from './composables/useScrollEdgeFades'
 import BookmarkList from './components/BookmarkList.vue'
 import IndexBar from './components/IndexBar.vue'
@@ -24,6 +25,7 @@ import ToastHost from './components/ToastHost.vue'
 const store = useFavoritesStore()
 const { show } = useToast()
 const { t, te } = useI18n()
+const { maybeStart: maybeStartTour } = useOnboardingTour()
 
 const showAdd = ref(false)
 const showSearch = ref(false)
@@ -134,6 +136,7 @@ onMounted(() => {
   void (async () => {
     await store.load()
     await pullOnActivate()
+    await maybeStartTour()
   })()
 })
 

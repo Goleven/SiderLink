@@ -70,17 +70,12 @@ const pendingImportRoot = ref<ReturnType<typeof parseRootJson> | null>(null)
 const syncBusy = ref(false)
 const showAdvanced = ref(false)
 const patInput = ref('')
-const toggleShortcutLabel = ref('')
-const searchShortcutLabel = ref('')
 const systemScheme = ref<'light' | 'dark'>(
   typeof window !== 'undefined' &&
     window.matchMedia('(prefers-color-scheme: dark)').matches
     ? 'dark'
     : 'light',
 )
-
-const TOGGLE_COMMAND = 'toggle-side-panel'
-const SEARCH_COMMAND = 'open-bookmark-search'
 
 const resolvedTheme = computed(() =>
   resolveTheme(store.settings.themeMode, systemScheme.value),
@@ -157,35 +152,6 @@ async function openPatHelp() {
   const provider = store.syncConfig.git.provider ?? 'github'
   const url = PAT_HELP_URLS[provider]
   await getBrowser().openUrl(url, { newTab: true })
-}
-
-function labelForCommand(
-  commands: chrome.commands.Command[],
-  name: string,
-): string {
-  const cmd = commands.find((c) => c.name === name)
-  const shortcut = cmd?.shortcut?.trim()
-  return shortcut || t('settings.shortcutUnset')
-}
-
-async function refreshShortcut() {
-  try {
-    if (typeof chrome === 'undefined' || !chrome.commands?.getAll) {
-      toggleShortcutLabel.value = t('settings.shortcutUnset')
-      searchShortcutLabel.value = t('settings.shortcutUnset')
-      return
-    }
-    const commands = await chrome.commands.getAll()
-    toggleShortcutLabel.value = labelForCommand(commands, TOGGLE_COMMAND)
-    searchShortcutLabel.value = labelForCommand(commands, SEARCH_COMMAND)
-  } catch {
-    toggleShortcutLabel.value = t('settings.shortcutUnset')
-    searchShortcutLabel.value = t('settings.shortcutUnset')
-  }
-}
-
-async function openShortcutSettings() {
-  await getBrowser().openUrl('chrome://extensions/shortcuts', { newTab: true })
 }
 
 let mql: MediaQueryList | null = null
@@ -566,7 +532,6 @@ watch(
       await nextTick()
       syncPills(false)
       startSegResizeObserver()
-      void refreshShortcut()
     } else if (mounted.value) {
       stopSegResizeObserver()
       await playExit()
@@ -685,31 +650,6 @@ async function onBack() {
         :aria-label="t('settings.language')"
         @update:model-value="setLocale($event as AppLocale)"
       />
-    </section>
-
-    <section>
-      <h3>{{ t('settings.shortcut') }}</h3>
-      <div class="shortcut-list">
-        <div class="shortcut-row">
-          <div class="shortcut-meta">
-            <span class="shortcut-name">{{ t('settings.shortcutToggle') }}</span>
-            <span class="shortcut-value">{{ toggleShortcutLabel }}</span>
-          </div>
-        </div>
-        <div class="shortcut-row">
-          <div class="shortcut-meta">
-            <span class="shortcut-name">{{ t('settings.shortcutSearch') }}</span>
-            <span class="shortcut-value">{{ searchShortcutLabel }}</span>
-          </div>
-        </div>
-        <button
-          type="button"
-          class="sync-btn pressable shortcut-change"
-          @click="openShortcutSettings"
-        >
-          {{ t('settings.shortcutChange') }}
-        </button>
-      </div>
     </section>
 
     <section>
@@ -1047,44 +987,6 @@ h3 {
 .sync-btn:disabled {
   opacity: 0.5;
   cursor: default;
-}
-
-.shortcut-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.shortcut-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.shortcut-meta {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.shortcut-name {
-  font-size: 13px;
-  font-weight: 560;
-  letter-spacing: -0.015em;
-  color: var(--text-primary);
-}
-
-.shortcut-value {
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  letter-spacing: -0.01em;
-}
-
-.shortcut-change {
-  align-self: flex-start;
 }
 
 .field {

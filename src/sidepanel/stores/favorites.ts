@@ -1,3 +1,11 @@
+/**
+ * Pinia store for favorites + sync config.
+ *
+ * Persistence boundary:
+ * - Local mutations → `persist()` (bumps `meta.updatedAt`, schedules auto-push)
+ * - Remote / external storage changes → `replaceRoot` / `applyRootLocal`
+ *   with `touch: false` so we do not re-push what we just pulled
+ */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getBrowser } from '@/shared/browser'
@@ -38,6 +46,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
         themeMode: 'system' as const,
         backgroundId: 'neutral',
         locale: 'zh-CN' as const,
+        hasCompletedTour: true,
       },
   )
 
@@ -61,6 +70,12 @@ export const useFavoritesStore = defineStore('favorites', () => {
     await load()
   }
 
+  /**
+   * Write root to storage.
+   * @param opts.touch - default true: bump meta.updatedAt + scheduleAutoPush.
+   *   Pass false when applying a remote/import payload so LWW and auto-push
+   *   do not treat the pull as a new local edit.
+   */
   async function persist(next: StorageRoot, opts?: { touch?: boolean }) {
     const prev = root.value
     const toSave =
@@ -84,10 +99,15 @@ export const useFavoritesStore = defineStore('favorites', () => {
     }
   }
 
+  /** Persist a remote/import root without bumping meta or auto-pushing. */
   async function replaceRoot(next: StorageRoot) {
     await persist(next, { touch: false })
   }
 
+  /**
+   * Mirror chrome.storage.onChanged into memory only (no re-write).
+   * Used when another context (SW, other panel) already saved the value.
+   */
   function applyRootLocal(next: StorageRoot) {
     root.value = next
   }
@@ -97,6 +117,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
     await syncRepo.save(next)
   }
 
+  /** In-memory sync-config mirror for storage.onChanged (no re-write). */
   function applySyncConfigLocal(next: SyncLocalConfig) {
     syncConfig.value = next
   }

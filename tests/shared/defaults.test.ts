@@ -16,6 +16,7 @@ describe('createDefaultRoot', () => {
       themeMode: 'system',
       backgroundId: 'neutral',
       locale: 'zh-CN',
+      hasCompletedTour: false,
     })
     expect(typeof root.meta.updatedAt).toBe('number')
   })

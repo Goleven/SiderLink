@@ -306,6 +306,7 @@ onUnmounted(() => {
   <nav
     ref="barRef"
     class="index-bar"
+    data-tour="index-bar"
     :class="{ hot }"
     :style="{ '--hot-hit-width': `${HOT_HIT_WIDTH}px` }"
     :aria-label="t('a11y.groupIndex')"

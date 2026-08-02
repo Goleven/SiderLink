@@ -102,11 +102,6 @@ export const en = {
     system: 'System',
     background: 'Background',
     language: 'Language',
-    shortcut: 'Shortcuts',
-    shortcutToggle: 'Toggle side panel',
-    shortcutSearch: 'Search',
-    shortcutUnset: 'Not set',
-    shortcutChange: 'Change in browser',
     groups: 'Groups',
     sync: 'Sync',
     syncOff: 'Off',
@@ -208,6 +203,25 @@ export const en = {
     addFailed: 'Couldn’t add page',
   },
   defaultGroupName: 'Link',
+  tour: {
+    next: 'Next',
+    prev: 'Back',
+    done: 'Done',
+    progress: '{{current}} of {{total}}',
+    welcomeTitle: 'Welcome to Sider Link',
+    welcomeDesc: 'Keep links in the side panel—grouped, searchable, and always at hand.',
+    listTitle: 'Your links',
+    listDesc: 'Browse links in the current group. Tap a row to open it.',
+    indexTitle: 'Jump by group',
+    indexDesc: 'Use the index bar to switch groups quickly.',
+    addTitle: 'Add a link',
+    addDesc: 'Save the current page or enter a URL manually.',
+    settingsTitle: 'Settings',
+    settingsDesc: 'Theme, language, groups, and sync live here.',
+    globalSearchTitle: 'Search from anywhere',
+    globalSearchDesc:
+      'Press Alt+Shift+K to open global search from any page—no need to open the side panel first.',
+  },
 } as const
 
 type StringLeaf<T> = {

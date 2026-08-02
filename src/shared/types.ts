@@ -29,6 +29,8 @@ export interface Settings {
   themeMode: ThemeMode
   backgroundId: string
   locale: AppLocale
+  /** False only for fresh installs until the first-run tour finishes or is dismissed. */
+  hasCompletedTour: boolean
 }
 
 export interface StorageMeta {

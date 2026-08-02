@@ -1,0 +1,67 @@
+/* Theme Driver.js popovers to match side panel tokens. */
+.driver-popover.sider-tour-popover {
+  max-width: min(280px, calc(100vw - 24px));
+  background: var(--elevated, var(--app-bg));
+  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, var(--hairline) 85%, transparent);
+  border-radius: 14px;
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 var(--hairline-bright);
+}
+
+.driver-popover.sider-tour-popover .driver-popover-title {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+.driver-popover.sider-tour-popover .driver-popover-description {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.driver-popover.sider-tour-popover .driver-popover-progress-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.driver-popover.sider-tour-popover .driver-popover-navigation-btns button {
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-shadow: none;
+  border: none;
+}
+
+.driver-popover.sider-tour-popover .driver-popover-prev-btn {
+  background: var(--row-bg, var(--elevated));
+  color: var(--text-primary);
+}
+
+.driver-popover.sider-tour-popover .driver-popover-next-btn {
+  background: var(--accent);
+  color: #fff;
+}
+
+.driver-popover.sider-tour-popover .driver-popover-close-btn {
+  color: var(--text-secondary);
+}
+
+.driver-popover.sider-tour-popover .driver-popover-arrow-side-left {
+  border-left-color: var(--elevated, var(--app-bg));
+}
+
+.driver-popover.sider-tour-popover .driver-popover-arrow-side-right {
+  border-right-color: var(--elevated, var(--app-bg));
+}
+
+.driver-popover.sider-tour-popover .driver-popover-arrow-side-top {
+  border-top-color: var(--elevated, var(--app-bg));
+}
+
+.driver-popover.sider-tour-popover .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--elevated, var(--app-bg));
+}

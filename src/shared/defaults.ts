@@ -4,7 +4,7 @@ import { DEFAULT_LOCALE } from './i18n/locales'
 import { translate } from './i18n/messages'
 import type { StorageRoot, SyncLocalConfig } from './types'
 
-export const STORAGE_VERSION = 2
+export const STORAGE_VERSION = 3
 
 export function createDefaultRoot(): StorageRoot {
   return {
@@ -25,6 +25,7 @@ export function createDefaultRoot(): StorageRoot {
       themeMode: 'system',
       backgroundId: 'neutral',
       locale: DEFAULT_LOCALE,
+      hasCompletedTour: false,
     },
     meta: {
       updatedAt: Date.now(),

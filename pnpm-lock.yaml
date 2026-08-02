@@ -11,6 +11,9 @@ importers:
       '@lucide/vue':
         specifier: ^1.26.0
         version: 1.27.0(vue@3.5.40(typescript@5.8.2))
+      driver.js:
+        specifier: ^1.8.0
+        version: 1.8.0
       motion:
         specifier: ^12.42.2
         version: 12.43.0
@@ -498,6 +501,9 @@ packages:
 
   domutils@3.0.1:
     resolution: {integrity: sha512-z08c1l761iKhDFtfXO04C7kTdPBLi41zwOZl00WS8b5eiaebNpY00HKbztwBq+e3vyqWNwWF3mP9YLUeqIrF+Q==}
+
+  driver.js@1.8.0:
+    resolution: {integrity: sha512-+8/IO7h1v14IzWh2GP60N7T3PFZweXwdn5e5POuxRSBoCYUojsBxzqawPeXh3YZIibRy7EehYNEyxe7slwwtdg==}
 
   editorconfig@1.0.7:
     resolution: {integrity: sha512-e0GOtq/aTQhVdNyDU9e02+wz9oDDM+SIOQxWME2QRjzRX5yyLAuHDE+0aE8vHb9XRC8XD37eO2u57+F09JqFhw==}
@@ -1472,6 +1478,8 @@ snapshots:
       dom-serializer: 2.0.0
       domelementtype: 2.3.0
       domhandler: 5.0.2
+
+  driver.js@1.8.0: {}
 
   editorconfig@1.0.7:
     dependencies:
