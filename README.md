@@ -2,6 +2,8 @@
 
 Chromium（Chrome / Edge）**侧边栏链接管理**扩展：分组收藏、右键快捷添加、主题与多语言，并支持导入导出或通过 Git（GitHub / Gitee / GitLab）跨设备同步。
 
+完整使用说明见 [使用教程](docs/使用教程.md)。
+
 ![侧栏主列表](docs/images/sidepanel-list.png)
 
 ## 功能概览
@@ -9,8 +11,9 @@ Chromium（Chrome / Edge）**侧边栏链接管理**扩展：分组收藏、右�
 ### 侧栏链接
 
 - 按**分组**管理链接；默认分组可改名、不可删除
-- 添加当前页 / 手动填写；编辑、删除（删除可撤销）
-- 左侧 **IndexBar**：按分组图标快速跳转；底部可打开设置与添加
+- 添加当前页 / 手动填写；编辑、删除（删除可撤销）；可维护图标（Logo）地址
+- 左侧 **IndexBar**：按分组图标快速跳转；分隔线下方为搜索、设置与添加
+- 侧栏内搜索：`/` 或 `⌘/Ctrl+K`，按标题与网址快速打开
 - 打开方式：新标签 / 当前标签
 
 ### 右键菜单
@@ -42,7 +45,7 @@ Chromium（Chrome / Edge）**侧边栏链接管理**扩展：分组收藏、右�
 | 导入导出 | JSON 备份下载 / 上传（导入会覆盖本机数据） |
 | Git | 私有仓库 + **Personal Access Token**；支持 GitHub / Gitee / GitLab |
 
-Git 模式下：侧栏激活可拉取、本地变更防抖推送、可设拉取间隔（15 / 30 / 60 分钟）或仅激活时拉取；冲突策略为整文件 **last-write-wins**（按 `meta.updatedAt`）。
+Git 模式下：可设拉取频率为 **人工同步**（仅手动强制拉取/推送）、仅激活时，或 15 / 30 / 60 分钟；非人工模式下侧栏激活可拉取、本地变更防抖推送，并可一键 LWW 同步。冲突策略为整文件 **last-write-wins**（按 `meta.updatedAt`）。详见 [使用教程 · 同步](docs/使用教程.md#8-同步)。
 
 > 令牌仅存本机同步配置，**不会**写入导出文件或远端 JSON。
 
@@ -84,10 +87,10 @@ src/
   sidepanel/           # 侧栏 UI
   shared/              # 领域逻辑、存储、i18n、Git 同步
 icons/                 # 扩展图标
-docs/                  # 设计说明与截图
+docs/                  # 使用教程、设计说明与截图
 ```
 
-更细的设计说明见：
+使用说明见 [`docs/使用教程.md`](docs/使用教程.md)。更细的设计说明见：
 
 - [`docs/superpowers/specs/2026-07-24-favorites-sidepanel-design.md`](docs/superpowers/specs/2026-07-24-favorites-sidepanel-design.md)  
 - [`docs/superpowers/specs/2026-07-31-git-sync-design.md`](docs/superpowers/specs/2026-07-31-git-sync-design.md)  

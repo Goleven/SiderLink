@@ -1,0 +1,8 @@
+/* Action popup size is content-driven (Chrome max ~800×600). */
+html,
+body,
+#app {
+  width: 360px;
+  height: 480px;
+  overflow: hidden;
+}

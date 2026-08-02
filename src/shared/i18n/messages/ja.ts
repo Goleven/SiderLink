@@ -9,6 +9,7 @@ export const ja: MessageSchema = {
     settings: '設定',
     add: '追加',
     search: '検索',
+    globalSearch: '検索',
     edit: '編集',
     more: 'その他',
     back: '戻る',
@@ -20,9 +21,13 @@ export const ja: MessageSchema = {
     pickIcon: 'グループアイコンを選択',
   },
   search: {
-    placeholder: 'ブックマークを検索',
+    placeholder: '検索',
     emptyHint: 'キーワードを入力',
     noResults: '一致する結果はありません',
+    noBookmarks: 'データなし',
+    windowTitle: '検索',
+    openFailed:
+      '検索を開けませんでした。Chrome を更新するか、しばらくしてから再試行してください。',
   },
   common: {
     cancel: 'キャンセル',
@@ -41,13 +46,13 @@ export const ja: MessageSchema = {
   add: {
     title: '追加',
     tabUnavailable:
-      'このページは保存できません。URL を手動で入力してください。',
+      'このページは追加できません。URL を手動で入力してください。',
     titleLabel: 'タイトル',
     urlLabel: 'URL',
     faviconLabel: 'ロゴ',
     faviconPlaceholder: 'https://',
     groupLabel: 'グループ',
-    saveCurrent: '現在のページを保存',
+    saveCurrent: 'このページを入力',
     submit: '追加',
     failed: '追加できませんでした',
   },
@@ -77,7 +82,7 @@ export const ja: MessageSchema = {
     delete: '削除',
     deleteConfirmTitle: '「{name}」を削除しますか？',
     deleteConfirmMessage:
-      '中の {count} 件のお気に入りはデフォルトグループへ移ります。この操作は取り消せません。',
+      '中の {count} 件の Link はデフォルトグループへ移ります。この操作は取り消せません。',
     save: '保存',
     saveFailed: '保存できませんでした',
     deleteFailed: '削除できませんでした',
@@ -103,6 +108,8 @@ export const ja: MessageSchema = {
     background: '背景',
     language: '言語',
     shortcut: 'ショートカット',
+    shortcutToggle: 'サイドパネルを切替',
+    shortcutSearch: '検索',
     shortcutUnset: '未設定',
     shortcutChange: 'ブラウザで変更',
     groups: 'グループ',
@@ -114,7 +121,7 @@ export const ja: MessageSchema = {
     syncImport: 'インポート',
     syncImportConfirmTitle: 'データを置き換えますか？',
     syncImportConfirmMessage:
-      'インポートしたお気に入りと設定で、この端末のデータを上書きします。',
+      'インポートしたデータで、この端末のデータを上書きします。',
     syncProvider: 'Git サービス',
     syncTest: 'テスト',
     syncSave: '保存',
@@ -147,7 +154,7 @@ export const ja: MessageSchema = {
   },
   sync: {
     invalidJson: '無効な JSON ファイルです',
-    invalidPayload: '有効なお気に入りバックアップではありません',
+    invalidPayload: '有効なバックアップファイルではありません',
     tokenRequired: 'パーソナルアクセストークンを入力してください',
     tokenInvalid: 'トークンが無効か権限が不足しています',
     providerMissing: '不明な Git サービスです',
@@ -192,7 +199,7 @@ export const ja: MessageSchema = {
   },
   error: {
     groupMissing: 'グループが見つかりません',
-    bookmarkMissing: 'お気に入りが見つかりません',
+    bookmarkMissing: 'Link が見つかりません',
     defaultGroupMissing: 'デフォルトグループがありません',
     cannotDeleteDefault: 'デフォルトグループは削除できません',
     groupOrderInvalid: 'グループの順序が無効です',

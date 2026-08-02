@@ -25,6 +25,7 @@ export default defineManifest({
     'sidePanel',
     'storage',
     'tabs',
+    'windows',
     'contextMenus',
     'alarms',
     'notifications',
@@ -41,7 +42,14 @@ export default defineManifest({
         default: 'Alt+Shift+L',
         mac: 'Alt+Shift+L',
       },
-      description: 'Sider Link',
+      description: '切换侧边栏',
+    },
+    'open-bookmark-search': {
+      suggested_key: {
+        default: 'Alt+Shift+K',
+        mac: 'Alt+Shift+K',
+      },
+      description: '快捷搜索',
     },
   },
 })

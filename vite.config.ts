@@ -4,6 +4,8 @@ import { crx } from '@crxjs/vite-plugin'
 import { fileURLToPath, URL } from 'node:url'
 import manifest from './manifest.config'
 
+const root = fileURLToPath(new URL('.', import.meta.url))
+
 export default defineConfig({
   plugins: [vue(), crx({ manifest })],
   resolve: {
@@ -16,5 +18,10 @@ export default defineConfig({
     emptyOutDir: true,
     // Avoid HTML modulepreload of SW-shared chunks (Chrome cross-world mismatch).
     modulePreload: false,
+    rollupOptions: {
+      input: {
+        search: `${root}/src/search/index.html`,
+      },
+    },
   },
 })
