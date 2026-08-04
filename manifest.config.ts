@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: 'Sider Link',
   description: 'Side panel link manager',
-  version: '0.1.0',
+  version: '0.2.0',
   action: {
     default_title: 'Sider Link',
     default_icon: {
