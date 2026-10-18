@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { DOMWrapper, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import AppSelect from '@/sidepanel/components/AppSelect.vue'
 
@@ -25,6 +25,12 @@ async function settle() {
   await nextTick()
   await Promise.resolve()
   await nextTick()
+}
+
+function listbox(): DOMWrapper<Element> {
+  const el = document.body.querySelector('[role="listbox"]')
+  if (!el) throw new Error('listbox not found')
+  return new DOMWrapper(el)
 }
 
 beforeAll(() => {
@@ -54,14 +60,19 @@ describe('AppSelect', () => {
   it('opens listbox and emits update on option click', async () => {
     const wrapper = mount(AppSelect, {
       props: { options, modelValue: 'a' },
+      attachTo: document.body,
     })
     await wrapper.find('.trigger').trigger('click')
     await settle()
-    expect(wrapper.find('[role="listbox"]').exists()).toBe(true)
-    await wrapper.findAll('[role="option"]')[1].trigger('pointerdown')
+    const menu = listbox()
+    expect(menu.exists()).toBe(true)
+    expect(wrapper.element.contains(menu.element)).toBe(false)
+    expect(menu.element.parentElement).toBe(document.body)
+    await menu.findAll('[role="option"]')[1].trigger('pointerdown')
     await settle()
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['b'])
-    expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull()
+    wrapper.unmount()
   })
 
   it('stays closed after select when wrapped in a label', async () => {
@@ -73,9 +84,9 @@ describe('AppSelect', () => {
     })
     await wrapper.find('.trigger').trigger('click')
     await settle()
-    await wrapper.findAll('[role="option"]')[1].trigger('pointerdown')
+    await listbox().findAll('[role="option"]')[1].trigger('pointerdown')
     await settle()
-    expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull()
     wrapper.unmount()
     host.remove()
   })
@@ -89,7 +100,7 @@ describe('AppSelect', () => {
     await settle()
     await wrapper.find('.trigger').trigger('keydown', { key: 'Escape' })
     await settle()
-    expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull()
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
     wrapper.unmount()
   })
@@ -133,7 +144,7 @@ describe('AppSelect', () => {
     await wrapper.find('.trigger').trigger('click')
     await settle()
 
-    expect(wrapper.find('.menu').classes()).toContain('above')
+    expect(listbox().classes()).toContain('above')
     wrapper.unmount()
     host.remove()
   })

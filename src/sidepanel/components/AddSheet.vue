@@ -125,7 +125,9 @@ async function submit() {
 </script>
 
 <template>
-  <div v-if="open" class="overlay" @click.self="emit('close')">
+  <!-- Press on the backdrop dismisses. Click would also fire when a group
+       option sticks out of the sheet and the pointer is released there. -->
+  <div v-if="open" class="overlay" @pointerdown.self="emit('close')">
     <div
       ref="panelRef"
       class="sheet"

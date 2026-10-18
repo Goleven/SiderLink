@@ -65,7 +65,8 @@ function requestDelete() {
 </script>
 
 <template>
-  <div v-if="open && item" class="overlay" @click.self="emit('close')">
+  <!-- Same as AddSheet: group options can extend past the sheet. -->
+  <div v-if="open && item" class="overlay" @pointerdown.self="emit('close')">
     <div class="sheet" role="dialog" :aria-label="t('a11y.editBookmark')">
       <h2>{{ t('editBookmark.title') }}</h2>
       <label>

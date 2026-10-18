@@ -37,6 +37,12 @@ const triggerRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 const activeIndex = ref(-1)
 const listId = `app-select-${Math.random().toString(36).slice(2, 9)}`
+const menuBox = ref({
+  top: '0px',
+  bottom: 'auto',
+  left: '0px',
+  width: '0px',
+})
 
 type MenuAnimation = { stop: () => void; finished: Promise<unknown> }
 let menuAnimation: MenuAnimation | null = null
@@ -78,6 +84,22 @@ function updatePlacement() {
     MENU_MIN,
     Math.min(MENU_MAX, Math.floor(available)),
   )
+
+  // Fixed to the viewport. The menu is teleported to body so a sheet's
+  // backdrop-filter / transform cannot clip hit testing on the overflow.
+  menuBox.value = openAbove
+    ? {
+        top: 'auto',
+        bottom: `${window.innerHeight - trigger.top + MENU_GAP}px`,
+        left: `${trigger.left}px`,
+        width: `${trigger.width}px`,
+      }
+    : {
+        top: `${trigger.bottom + MENU_GAP}px`,
+        bottom: 'auto',
+        left: `${trigger.left}px`,
+        width: `${trigger.width}px`,
+      }
 }
 
 function exitOffsetY() {
@@ -142,6 +164,7 @@ async function openMenu() {
   if (props.disabled || open.value) return
   stopMenuAnimation()
   closing.value = false
+  updatePlacement()
   open.value = true
   menuMounted.value = true
   activeIndex.value = Math.max(0, indexOfValue(props.modelValue))
@@ -226,8 +249,11 @@ function onTriggerKeydown(e: KeyboardEvent) {
 }
 
 function onDocPointerDown(e: PointerEvent) {
-  if (!menuMounted.value || !rootRef.value || closing.value) return
-  if (!rootRef.value.contains(e.target as Node)) void closeMenu()
+  if (!menuMounted.value || closing.value) return
+  const target = e.target
+  if (!(target instanceof Node)) return
+  if (rootRef.value?.contains(target) || menuRef.value?.contains(target)) return
+  void closeMenu()
 }
 
 function onViewportChange() {
@@ -292,40 +318,50 @@ watch(
       <AppIcon name="chevron-down" :size="16" class="chevron" />
     </button>
 
-    <ul
-      v-if="menuMounted"
-      :id="listId"
-      ref="menuRef"
-      class="menu"
-      :class="[placement, { closing }]"
-      role="listbox"
-      :aria-label="ariaLabel"
-      :style="{ maxHeight: `${menuMaxHeight}px` }"
-    >
-      <li
-        v-for="(opt, i) in options"
-        :id="`${listId}-opt-${i}`"
-        :key="opt.value"
-        role="option"
-        class="option pressable"
-        :class="{
-          active: i === activeIndex,
-          selected: opt.value === modelValue,
+    <!-- Outside the sheet: backdrop-filter clips hits on overflowing options. -->
+    <Teleport to="body">
+      <ul
+        v-if="menuMounted"
+        :id="listId"
+        ref="menuRef"
+        class="menu"
+        :class="[placement, { closing }]"
+        role="listbox"
+        :aria-label="ariaLabel"
+        :style="{
+          maxHeight: `${menuMaxHeight}px`,
+          top: menuBox.top,
+          bottom: menuBox.bottom,
+          left: menuBox.left,
+          width: menuBox.width,
         }"
-        :aria-selected="opt.value === modelValue"
-        @pointerdown="selectAt(i, $event)"
-        @click="selectAt(i, $event)"
-        @pointerenter="activeIndex = i"
+        @pointerdown.stop
       >
-        <span class="option-label">{{ opt.label }}</span>
-        <AppIcon
-          v-if="opt.value === modelValue"
-          name="check"
-          :size="16"
-          class="check"
-        />
-      </li>
-    </ul>
+        <li
+          v-for="(opt, i) in options"
+          :id="`${listId}-opt-${i}`"
+          :key="opt.value"
+          role="option"
+          class="option pressable"
+          :class="{
+            active: i === activeIndex,
+            selected: opt.value === modelValue,
+          }"
+          :aria-selected="opt.value === modelValue"
+          @pointerdown="selectAt(i, $event)"
+          @click="selectAt(i, $event)"
+          @pointerenter="activeIndex = i"
+        >
+          <span class="option-label">{{ opt.label }}</span>
+          <AppIcon
+            v-if="opt.value === modelValue"
+            name="check"
+            :size="16"
+            class="check"
+          />
+        </li>
+      </ul>
+    </Teleport>
   </div>
 </template>
 
@@ -382,10 +418,9 @@ watch(
 }
 
 .menu {
-  position: absolute;
-  z-index: 20;
-  left: 0;
-  right: 0;
+  position: fixed;
+  /* Above sheet overlays (30) and below confirm dialogs (50). */
+  z-index: 36;
   margin: 0;
   padding: 6px;
   list-style: none;
@@ -406,14 +441,10 @@ watch(
 }
 
 .menu.below {
-  top: calc(100% + 6px);
-  bottom: auto;
   transform-origin: top center;
 }
 
 .menu.above {
-  bottom: calc(100% + 6px);
-  top: auto;
   transform-origin: bottom center;
 }
 
