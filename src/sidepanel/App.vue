@@ -9,7 +9,10 @@ import { useTheme } from './composables/useTheme'
 import { useToast } from './composables/useToast'
 import { useAdjacentGroupScroll } from './composables/useAdjacentGroupScroll'
 import { useDragReorder } from './composables/useDragReorder'
-import { useOnboardingTour } from './composables/useOnboardingTour'
+import {
+  bindOnboardingTourSettings,
+  useOnboardingTour,
+} from './composables/useOnboardingTour'
 import { useScrollEdgeFades } from './composables/useScrollEdgeFades'
 import BookmarkList from './components/BookmarkList.vue'
 import IndexBar from './components/IndexBar.vue'
@@ -30,6 +33,14 @@ const { maybeStart: maybeStartTour } = useOnboardingTour()
 const showAdd = ref(false)
 const showSearch = ref(false)
 const showSettings = ref(false)
+bindOnboardingTourSettings({
+  openSettings: () => {
+    showSettings.value = true
+  },
+  closeSettings: () => {
+    showSettings.value = false
+  },
+})
 const editItem = ref<BookmarkItem | null>(null)
 const showEditBookmark = ref(false)
 const editGroup = ref<Group | null>(null)
@@ -255,6 +266,9 @@ function onGroupCreated(id: string) {
         :class="{ visible: showBottomFade && !showSettings }"
         aria-hidden="true"
       />
+      <!-- Visible list frame. The real list grows with bookmarks and would
+           swallow the tour cutout once it is taller than the panel. -->
+      <div class="tour-list-stage" data-tour="bookmark-list" aria-hidden="true" />
     </div>
 
     <SettingsView
@@ -334,6 +348,17 @@ function onGroupCreated(id: string) {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+}
+
+.tour-list-stage {
+  position: absolute;
+  z-index: 1;
+  left: 36px;
+  right: 10px;
+  top: 12px;
+  /* Leave room under the frame so the popover can sit in the dimmed area. */
+  bottom: 156px;
+  pointer-events: none;
 }
 
 .edge-fade {

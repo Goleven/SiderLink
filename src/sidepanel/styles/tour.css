@@ -1,6 +1,9 @@
 /* Theme Driver.js popovers to match side panel tokens. */
 .driver-popover.sider-tour-popover {
-  max-width: min(280px, calc(100vw - 24px));
+  /* Driver's min-width: 250px overflows a narrow side panel. */
+  min-width: 0;
+  width: min(280px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
   background: var(--elevated, var(--app-bg));
   color: var(--text-primary);
   border: 1px solid color-mix(in srgb, var(--hairline) 85%, transparent);
@@ -48,6 +51,11 @@
 
 .driver-popover.sider-tour-popover .driver-popover-close-btn {
   color: var(--text-secondary);
+}
+
+/* Global `* { box-sizing: border-box }` collapses the border-triangle arrow. */
+.driver-popover.sider-tour-popover .driver-popover-arrow {
+  box-sizing: content-box;
 }
 
 .driver-popover.sider-tour-popover .driver-popover-arrow-side-left {

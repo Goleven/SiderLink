@@ -36,7 +36,7 @@ const isEmpty = computed(() => visibleItems.value.length === 0)
 </script>
 
 <template>
-  <div class="list" data-tour="bookmark-list">
+  <div class="list">
     <p v-if="isEmpty" class="empty">{{ t('app.empty') }}</p>
     <template v-else>
       <GroupSection

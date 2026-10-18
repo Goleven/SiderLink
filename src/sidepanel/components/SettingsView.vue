@@ -31,6 +31,7 @@ import type {
 import { getBrowser } from '@/shared/browser'
 import { useFavoritesStore } from '../stores/favorites'
 import { useDragReorder } from '../composables/useDragReorder'
+import { useOnboardingTour } from '../composables/useOnboardingTour'
 import { useReducedMotion } from '../composables/useReducedMotion'
 import { useToast } from '../composables/useToast'
 import AppIcon from './AppIcon.vue'
@@ -48,6 +49,7 @@ const { t, te } = useI18n()
 const store = useFavoritesStore()
 const { show } = useToast()
 const { reduced } = useReducedMotion()
+const { replay: replayTour } = useOnboardingTour()
 
 const orderedGroups = computed(() => sortGroups(store.groups))
 const { onGroupPointerDown } = useDragReorder({
@@ -547,6 +549,20 @@ async function onBack() {
   mounted.value = false
   emit('close')
 }
+
+let replayingTour = false
+
+async function onReplayTour() {
+  if (replayingTour) return
+  replayingTour = true
+  try {
+    await onBack()
+    await nextTick()
+    await replayTour()
+  } finally {
+    replayingTour = false
+  }
+}
 </script>
 
 <template>
@@ -570,7 +586,8 @@ async function onBack() {
       <span class="spacer" />
     </header>
 
-    <section>
+    <div class="settings-body">
+    <section data-tour="settings-open-mode">
       <h3>{{ t('settings.openMode') }}</h3>
       <div ref="openModeSegRef" class="seg">
         <div ref="openModePillRef" class="seg-pill" aria-hidden="true" />
@@ -593,7 +610,7 @@ async function onBack() {
       </div>
     </section>
 
-    <section>
+    <section data-tour="settings-theme">
       <h3>{{ t('settings.theme') }}</h3>
       <div ref="themeSegRef" class="seg">
         <div ref="themePillRef" class="seg-pill" aria-hidden="true" />
@@ -624,7 +641,7 @@ async function onBack() {
       </div>
     </section>
 
-    <section>
+    <section data-tour="settings-background">
       <h3>{{ t('settings.background') }}</h3>
       <div class="swatches">
         <button
@@ -642,7 +659,7 @@ async function onBack() {
       </div>
     </section>
 
-    <section>
+    <section data-tour="settings-language">
       <h3>{{ t('settings.language') }}</h3>
       <AppSelect
         :model-value="store.settings.locale"
@@ -652,7 +669,7 @@ async function onBack() {
       />
     </section>
 
-    <section>
+    <section data-tour="settings-groups">
       <h3>{{ t('settings.groups') }}</h3>
       <div class="group-list">
         <button
@@ -681,8 +698,9 @@ async function onBack() {
     </section>
 
     <section>
-      <h3>{{ t('settings.sync') }}</h3>
-      <div ref="syncSegRef" class="seg">
+      <div data-tour="settings-sync">
+        <h3>{{ t('settings.sync') }}</h3>
+        <div ref="syncSegRef" class="seg">
         <div ref="syncPillRef" class="seg-pill" aria-hidden="true" />
         <button
           type="button"
@@ -708,6 +726,7 @@ async function onBack() {
         >
           {{ t('settings.syncGit') }}
         </button>
+        </div>
       </div>
 
       <div v-if="store.syncConfig.mode === 'manual'" class="sync-panel">
@@ -878,6 +897,12 @@ async function onBack() {
       </div>
     </section>
 
+    <p class="tour-replay">
+      <button type="button" class="tour-link" @click="onReplayTour">
+        {{ t('settings.replayTour') }}
+      </button>
+    </p>
+
     <ConfirmDialog
       :open="showImportConfirm"
       :title="t('settings.syncImportConfirmTitle')"
@@ -888,6 +913,7 @@ async function onBack() {
       @confirm="confirmImport"
       @cancel="cancelImport"
     />
+    </div>
   </div>
 </template>
 
@@ -953,6 +979,34 @@ h3 {
   font-size: 13px;
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+.tour-replay {
+  margin: 28px 16px 8px;
+  text-align: center;
+}
+
+.tour-link {
+  border: none;
+  background: transparent;
+  padding: 4px 2px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.tour-link:hover {
+  color: color-mix(in srgb, var(--accent) 78%, var(--text-primary));
+}
+
+.tour-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .sync-panel {
